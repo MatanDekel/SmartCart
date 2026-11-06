@@ -18,6 +18,11 @@ const MESSAGES = {
   "auth/user-not-found": "לא נמצא חשבון עם המייל הזה.",
   "auth/too-many-requests": "יותר מדי ניסיונות. נסי שוב בעוד כמה דקות.",
   "auth/network-request-failed": "אין חיבור לאינטרנט. בדקי את החיבור ונסי שוב.",
+  "auth/popup-blocked": "הדפדפן חסם את חלון ההתחברות. מנסה שוב בדרך אחרת…",
+  "auth/popup-closed-by-user": "חלון ההתחברות נסגר לפני שהסתיים.",
+  "auth/cancelled-popup-request": "חלון ההתחברות נסגר לפני שהסתיים.",
+  "auth/unauthorized-domain": "הכתובת של האתר לא מאושרת ב־Firebase. צריך להוסיף אותה ב־Authorized domains.",
+  "auth/account-exists-with-different-credential": "כבר יש חשבון עם המייל הזה. התחברי עם מייל וסיסמה.",
   "auth/operation-not-allowed": "ההרשמה במייל לא מופעלת ב־Firebase. צריך להפעיל Email/Password ב־Authentication."
 };
 export const authMessage = (e) => MESSAGES[e?.code] || "משהו השתבש. נסי שוב.";

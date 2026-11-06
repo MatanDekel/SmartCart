@@ -42,6 +42,11 @@ input:focus{border-color:var(--green);outline:none}
 .msg{min-height:22px;margin-top:12px;font-size:15px}
 .msg.err{color:var(--danger)} .msg.ok{color:var(--green)}
 .link{background:none;border:0;color:var(--green);text-decoration:underline;cursor:pointer;padding:6px 0;font-size:15px;font-weight:600}
+.google{width:100%;padding:13px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);font-weight:700;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+.google:hover{border-color:var(--ink)}
+.google:disabled{opacity:.6;cursor:wait}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;margin:18px 0 4px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .setup{background:var(--surface);border:1.5px dashed var(--danger);border-radius:12px;padding:14px;font-size:15px}
 [hidden]{display:none!important}
 </style>
@@ -49,7 +54,7 @@ input:focus{border-color:var(--green);outline:none}
 <body>
 <main class="card">
   <div class="logo"><img src="/favicon.svg" alt=""><h1>SmartCart</h1></div>
-  <p class="lead" id="lead">נרשמים פעם אחת, והרשימה מחכה לך בכל מכשיר.</p>
+  <p class="lead" id="lead">מתחברים פעם אחת, והרשימה מחכה לך בכל מכשיר.</p>
 
   <div class="setup" id="setup" hidden>עוד לא הוגדר Firebase. צריך למלא את הפרטים בקובץ <b>firebase-config.js</b>.</div>
 
@@ -58,6 +63,8 @@ input:focus{border-color:var(--green);outline:none}
       <button role="tab" id="t-signup" aria-selected="true">הרשמה</button>
       <button role="tab" id="t-login" aria-selected="false">כבר יש לי חשבון</button>
     </div>
+    <button type="button" class="google" id="google">המשך עם חשבון Google</button>
+    <div class="or">או עם מייל</div>
     <form id="form" novalidate>
       <label for="email">מייל</label>
       <input id="email" type="email" autocomplete="email" inputmode="email" required>
@@ -76,7 +83,8 @@ input:focus{border-color:var(--green);outline:none}
 
 <script type="module">
 import { configured, auth, authMessage } from "./auth.js";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, setPersistence, browserLocalPersistence }
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, setPersistence, browserLocalPersistence,
+  GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const $ = id => document.getElementById(id);
@@ -115,6 +123,24 @@ else {
       location.replace("/");
     } catch(err){ msg(authMessage(err)); $("submit").disabled = false; }
   });
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  getRedirectResult(auth).catch(err => msg(authMessage(err)));
+  $("google").onclick = async () => {
+    $("google").disabled = true; msg("");
+    try {
+      await signInWithPopup(auth, provider);
+      location.replace("/");
+    } catch(err){
+      if (err?.code === "auth/popup-blocked" || err?.code === "auth/operation-not-supported-in-this-environment"){
+        try { await signInWithRedirect(auth, provider); return; } catch(e2){ msg(authMessage(e2)); }
+      } else if (err?.code !== "auth/popup-closed-by-user" && err?.code !== "auth/cancelled-popup-request"){
+        msg(authMessage(err));
+      }
+      $("google").disabled = false;
+    }
+  };
 
   $("forgot").onclick = async () => {
     const email = $("email").value.trim();
