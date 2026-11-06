@@ -84,7 +84,7 @@ input:focus{border-color:var(--green);outline:none}
 <script type="module">
 import { configured, auth, authMessage } from "./auth.js";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, setPersistence, browserLocalPersistence,
-  GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult }
+  GoogleAuthProvider, signInWithPopup, sendEmailVerification, signInWithRedirect, getRedirectResult }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const $ = id => document.getElementById(id);
@@ -118,7 +118,10 @@ else {
     if (mode==="signup" && pass !== $("pass2").value) return msg("הסיסמאות לא תואמות.");
     $("submit").disabled = true; msg("");
     try {
-      if (mode==="signup") await createUserWithEmailAndPassword(auth, email, pass);
+      if (mode==="signup"){
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        try { await sendEmailVerification(cred.user); } catch(e){}
+      }
       else await signInWithEmailAndPassword(auth, email, pass);
       location.replace("/");
     } catch(err){ msg(authMessage(err)); $("submit").disabled = false; }

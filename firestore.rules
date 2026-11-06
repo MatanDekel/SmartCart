@@ -1,8 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function famPath(fid) { return /databases/$(database)/documents/families/$(fid); }
+    function fam(fid) { return get(famPath(fid)).data; }
+    function isMember(fid) {
+      return signedIn() && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid));
+    }
+    function verifiedEmail() {
+      return signedIn() && request.auth.token.email_verified == true ? request.auth.token.email.lower() : "";
+    }
+
+    // פרופיל אישי (לאיזו משפחה המשתמש שייך) + רשימה אישית ישנה
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /families/{fid} {
+      allow read: if isMember(fid)
+        || (verifiedEmail() != "" && verifiedEmail() in resource.data.invitedEmails);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isMember(fid);
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      match /members/{uid} {
+        allow read: if isMember(fid);
+        allow create: if signedIn() && request.auth.uid == uid && (
+          fam(fid).ownerUid == uid
+          || (request.resource.data.code is string && request.resource.data.code == fam(fid).inviteCode)
+          || (verifiedEmail() != "" && verifiedEmail() in fam(fid).invitedEmails)
+        );
+        allow update: if signedIn() && request.auth.uid == uid;
+        allow delete: if signedIn() && (request.auth.uid == uid || fam(fid).ownerUid == request.auth.uid);
+      }
+
+      match /lists/{document=**} {
+        allow read, write: if isMember(fid);
+      }
     }
   }
 }

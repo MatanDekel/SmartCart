@@ -103,6 +103,23 @@ nav.tabs .badge{display:inline-block;min-width:22px;padding:0 6px;margin-inline-
 .auth-pending body{visibility:hidden}
 .userbar{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:2px;flex-wrap:wrap}
 .userbar button{background:none;border:0;color:var(--green);text-decoration:underline;cursor:pointer;font-size:13px;font-weight:600;padding:2px 0}
+nav.tabs button{padding:12px 6px}
+.fam h3{font-family:"Secular One","Assistant",sans-serif;font-weight:400;font-size:19px;margin:20px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--ink)}
+.fam .row{min-height:44px}
+.fam .who{flex:1;direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fam .tagme{font-size:13px;color:var(--muted)}
+.fam .linkbox{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.fam .linkbox input{flex:1 1 220px;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);direction:ltr;font-size:14px}
+.fam .btn{padding:10px 14px;border-radius:12px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-weight:700;cursor:pointer}
+.fam .btn.solid{background:var(--green);color:var(--bg);border-color:var(--green)}
+.fam p{margin:6px 0;color:var(--muted);font-size:15px}
+.leave{margin-top:28px}
+#offer:empty{display:none}
+#offer{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--green-soft);border:1.5px solid var(--green)}
+#offer p{margin:0 0 8px;font-weight:600}
+#offer .acts{display:flex;gap:8px;flex-wrap:wrap}
+#offer button{padding:8px 14px;border-radius:10px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-weight:700;cursor:pointer}
+#offer button.solid{background:var(--green);color:var(--bg)}
 </style>
 <script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
@@ -113,11 +130,13 @@ nav.tabs .badge{display:inline-block;min-width:22px;padding:0 6px;margin-inline-
     <p id="sub">בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה.</p>
     <div class="userbar"><span id="who"></span><button id="logout" hidden>התנתקות</button><span class="sync" id="sync" aria-live="polite"></span></div>
   </header>
+  <div id="offer"></div>
   <main id="main"></main>
 </div>
 <nav class="tabs" role="tablist">
   <button role="tab" id="tab-pick" aria-selected="true">בחירת מוצרים</button>
-  <button role="tab" id="tab-list" aria-selected="false">הרשימה שלי<span class="badge" id="badge" hidden></span></button>
+  <button role="tab" id="tab-list" aria-selected="false">הרשימה<span class="badge" id="badge" hidden></span></button>
+  <button role="tab" id="tab-family" aria-selected="false">משפחה</button>
 </nav>
 <div class="toast" id="toast" role="status"></div>
 
@@ -163,7 +182,8 @@ if (!valid(state)) state = freshState();
 state.done = state.done || {};
 migrate(state);
 
-let view = location.hash === "#list" ? "list" : "pick";
+const viewFromHash = () => ({"#list":"list","#family":"family"})[location.hash] || "pick";
+let view = viewFromHash();
 let editMode = false;
 const openCats = new Set();
 
@@ -225,7 +245,7 @@ function el(tag, attrs={}, ...kids){
     if (k==="class") e.className=v; else if (k.startsWith("on")) e.addEventListener(k.slice(2),v);
     else if (v===true) e.setAttribute(k,""); else if (v!==false && v!=null) e.setAttribute(k,v);
   }
-  for (const k of kids.flat()) if (k!=null) e.append(k.nodeType?k:document.createTextNode(k));
+  for (const k of kids.flat(Infinity)) if (k!=null) e.append(k.nodeType?k:document.createTextNode(k));
   return e;
 }
 function toast(msg, actionLabel, action){
@@ -391,45 +411,228 @@ function renderList(){
 function toggleDone(id){ state.done[id] ? delete state.done[id] : state.done[id]=true; persist(); render(); }
 
 function render(){
-  document.getElementById("tab-pick").setAttribute("aria-selected", view==="pick");
-  document.getElementById("tab-list").setAttribute("aria-selected", view==="list");
+  for (const v of ["pick","list","family"]) document.getElementById("tab-"+v).setAttribute("aria-selected", view===v);
   const n = selected().length, b = document.getElementById("badge");
   b.hidden = !n; b.textContent = n;
-  document.getElementById("sub").textContent = view==="pick"
-    ? "בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה."
-    : "לחיצה על מוצר מסמנת שהוא כבר בעגלה.";
-  view==="pick" ? renderPick() : renderList();
+  document.getElementById("sub").textContent = {
+    pick: "בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה.",
+    list: "לחיצה על מוצר מסמנת שהוא כבר בעגלה.",
+    family: "כל מי שבמשפחה רואה ועורך את אותה רשימה."
+  }[view];
+  if (view==="pick") renderPick();
+  else if (view==="list") renderList();
+  else if (window.renderFamilyView) window.renderFamilyView(main);
+  else main.replaceChildren(el("p",{class:"hint",style:"margin-top:20px"},"טוען…"));
 }
-document.getElementById("tab-pick").onclick = ()=>{ view="pick"; history.replaceState(null,"","#pick"); render(); scrollTo(0,0); };
-document.getElementById("tab-list").onclick = ()=>{ view="list"; history.replaceState(null,"","#list"); render(); scrollTo(0,0); };
-window.addEventListener("hashchange",()=>{ view = location.hash==="#list"?"list":"pick"; render(); });
+for (const v of ["pick","list","family"])
+  document.getElementById("tab-"+v).onclick = ()=>{ view=v; history.replaceState(null,"","#"+v); render(); scrollTo(0,0); };
+window.addEventListener("hashchange",()=>{ view = viewFromHash(); render(); });
 render();
 </script>
 <script type="module">
 import { configured, auth, db } from "./auth.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, arrayUnion, arrayRemove, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const show = () => document.documentElement.classList.remove("auth-pending");
+const JOIN_KEY = "smartcartJoin";
+const params = new URLSearchParams(location.search);
+if (params.get("join")){
+  try { localStorage.setItem(JOIN_KEY, params.get("join")); } catch(e){}
+  history.replaceState(null, "", location.pathname + location.hash);
+}
+const getPending = () => { try { return localStorage.getItem(JOIN_KEY); } catch(e){ return null; } };
+const clearPending = () => { try { localStorage.removeItem(JOIN_KEY); } catch(e){} };
+const randCode = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2,"0")).join("");
+const lc = s => (s || "").trim().toLowerCase();
+
+let ME = null, FID = null, FAMILY = null, MEMBERS = [];
+
+async function joinFamily(user, fid, code){
+  await setDoc(doc(db,"families",fid,"members",user.uid), { email: lc(user.email), code: code || null, joinedAt: serverTimestamp() });
+  await setDoc(doc(db,"users",user.uid), { familyId: fid }, { merge: true });
+  try { await updateDoc(doc(db,"families",fid), { invitedEmails: arrayRemove(lc(user.email)) }); } catch(e){}
+  clearPending();
+}
+async function createFamily(user){
+  const ref = doc(collection(db,"families"));
+  await setDoc(ref, { ownerUid: user.uid, inviteCode: randCode(), invitedEmails: [], createdAt: serverTimestamp() });
+  await setDoc(doc(db,"families",ref.id,"members",user.uid), { email: lc(user.email), joinedAt: serverTimestamp() });
+  try {
+    const old = await getDoc(doc(db,"users",user.uid,"lists","shopping"));
+    if (old.exists()) await setDoc(doc(db,"families",ref.id,"lists","shopping"), old.data());
+  } catch(e){}
+  await setDoc(doc(db,"users",user.uid), { familyId: ref.id }, { merge: true });
+  return ref.id;
+}
+async function emailInvites(user){
+  if (!user.email || !user.emailVerified) return [];
+  try {
+    const s = await getDocs(query(collection(db,"families"), where("invitedEmails","array-contains", lc(user.email))));
+    return s.docs.map(d => d.id);
+  } catch(e){ return []; }
+}
+async function currentFamily(user){
+  try {
+    const prof = await getDoc(doc(db,"users",user.uid));
+    const fid = prof.exists() ? prof.data().familyId : null;
+    if (!fid) return null;
+    const m = await getDoc(doc(db,"families",fid,"members",user.uid));
+    return m.exists() ? fid : null;
+  } catch(e){ return null; }
+}
+async function resolveFamily(user){
+  let fid = await currentFamily(user);
+  const pending = getPending();
+  const [pf, pc] = pending ? pending.split(".") : [];
+  const invites = (await emailInvites(user)).filter(id => id !== fid);
+  if (!fid){
+    if (pf){
+      try { await joinFamily(user, pf, pc); return { fid: pf, joined: true }; }
+      catch(e){ clearPending(); toast("קישור ההזמנה לא תקף או שפג תוקפו"); }
+    }
+    if (invites.length){ await joinFamily(user, invites[0], null); return { fid: invites[0], joined: true }; }
+    return { fid: await createFamily(user) };
+  }
+  if (pf === fid) clearPending();
+  const offer = (pf && pf !== fid) ? { fid: pf, code: pc } : (invites.length ? { fid: invites[0], code: null } : null);
+  return { fid, offer };
+}
+
+function showOffer(offer){
+  const box = document.getElementById("offer");
+  if (!offer){ box.replaceChildren(); return; }
+  const join = el("button",{class:"solid",onclick: async () => {
+    join.disabled = true;
+    try { await joinFamily(ME, offer.fid, offer.code); location.reload(); }
+    catch(e){ clearPending(); toast("קישור ההזמנה לא תקף או שפג תוקפו"); box.replaceChildren(); }
+  }},"הצטרפות");
+  box.replaceChildren(
+    el("p",{},"הוזמנת להצטרף לסל קניות משפחתי. אחרי ההצטרפות תראי את הרשימה המשותפת במקום הרשימה הנוכחית."),
+    el("div",{class:"acts"}, join, el("button",{onclick:()=>{ clearPending(); box.replaceChildren(); }},"לא עכשיו"))
+  );
+}
+
+const inviteLink = () => FAMILY ? `${location.origin}/?join=${FID}.${FAMILY.inviteCode}` : "";
+const rerenderFamily = () => { if (view === "family") render(); };
+
+window.renderFamilyView = (main) => {
+  if (!FAMILY){ main.replaceChildren(el("p",{class:"hint",style:"margin-top:20px"},"טוען…")); return; }
+  const isOwner = FAMILY.ownerUid === ME.uid;
+  const link = inviteLink();
+
+  const emailIn = el("input",{type:"email",placeholder:"name@gmail.com",autocomplete:"off","aria-label":"מייל להזמנה",inputmode:"email"});
+  const invite = async () => {
+    const em = lc(emailIn.value);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("כתובת המייל לא תקינה"); emailIn.focus(); return; }
+    if (MEMBERS.some(m => m.email === em)){ toast("הוא/היא כבר במשפחה"); return; }
+    try { await updateDoc(doc(db,"families",FID), { invitedEmails: arrayUnion(em) }); }
+    catch(e){ toast("ההזמנה לא נשמרה. נסי שוב."); return; }
+    const subject = "הזמנה לרשימת הקניות המשפחתית";
+    const body = `היי! הוספתי אותך לרשימת הקניות המשותפת שלנו ב־SmartCart.\n\nנכנסים בקישור ומתחברים עם ${em}:\n${link}`;
+    location.href = `mailto:${em}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    toast("ההזמנה נשמרה. ברגע שיתחברו עם המייל הזה, הם יצטרפו אוטומטית.");
+  };
+  emailIn.addEventListener("keydown", e => { if (e.key === "Enter") invite(); });
+
+  const linkIn = el("input",{type:"text",readonly:true,value:link,"aria-label":"קישור הזמנה",onfocus:e=>e.target.select()});
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); toast("הקישור הועתק"); }
+    catch(e){ linkIn.focus(); linkIn.select(); toast("סמני את הקישור והעתיקי"); }
+  };
+  const share = async () => {
+    const text = "הצטרפו לרשימת הקניות המשפחתית שלנו:";
+    if (navigator.share){ try { await navigator.share({ title: "SmartCart", text, url: link }); } catch(e){} }
+    else window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + link)}`, "_blank", "noopener");
+  };
+  const rotate = async () => {
+    try { await updateDoc(doc(db,"families",FID), { inviteCode: randCode() }); toast("נוצר קישור חדש. הקישור הקודם כבר לא עובד."); }
+    catch(e){ toast("לא הצלחתי ליצור קישור חדש"); }
+  };
+
+  const leave = el("button",{class:"del leave",onclick: async (e) => {
+    const b = e.currentTarget;
+    if (!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "לחיצה נוספת – עזיבה ויצירת רשימה חדשה משלך"; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent = "עזיבת המשפחה"; } }, 4000); return; }
+    try {
+      const others = MEMBERS.filter(m => m.uid !== ME.uid);
+      if (isOwner && others.length) await updateDoc(doc(db,"families",FID), { ownerUid: others[0].uid });
+      await deleteDoc(doc(db,"families",FID,"members",ME.uid));
+      await setDoc(doc(db,"users",ME.uid), { familyId: null }, { merge: true });
+      location.reload();
+    } catch(err){ toast("לא הצלחתי לעזוב. נסי שוב."); }
+  }},"עזיבת המשפחה");
+
+  main.replaceChildren(el("div",{class:"fam"},
+    el("h3",{},`מי במשפחה (${MEMBERS.length})`),
+    MEMBERS.map(m => el("div",{class:"row"},
+      el("span",{class:"who"}, m.email || "ללא מייל"),
+      m.uid === FAMILY.ownerUid ? el("span",{class:"tagme"},"מנהל/ת") : null,
+      m.uid === ME.uid ? el("span",{class:"tagme"},"(את/ה)") : null,
+      isOwner && m.uid !== ME.uid ? el("button",{class:"del",onclick: async () => {
+        try { await deleteDoc(doc(db,"families",FID,"members",m.uid)); toast(`${m.email} הוסר/ה מהמשפחה`); }
+        catch(e){ toast("לא הצלחתי להסיר"); }
+      }},"הסרה") : null
+    )),
+
+    el("h3",{},"הזמנה במייל"),
+    el("p",{},"מכניסים את המייל של בן/בת המשפחה. כשיתחברו לאתר עם המייל הזה (הכי פשוט: עם Google), הם יצטרפו לרשימה אוטומטית. בנוסף ייפתח מייל מוכן לשליחה עם קישור."),
+    el("div",{class:"linkbox"}, emailIn, el("button",{class:"btn solid",onclick:invite},"הזמנה")),
+    (FAMILY.invitedEmails || []).length ? [
+      el("p",{style:"margin-top:12px"},"ממתינים להצטרפות:"),
+      FAMILY.invitedEmails.map(em => el("div",{class:"row"},
+        el("span",{class:"who"}, em),
+        el("button",{class:"del",onclick: async () => {
+          try { await updateDoc(doc(db,"families",FID), { invitedEmails: arrayRemove(em) }); } catch(e){ toast("לא הצלחתי לבטל"); }
+        }},"ביטול")))
+    ] : null,
+
+    el("h3",{},"קישור הזמנה"),
+    el("p",{},"כל מי שנכנס בקישור ומתחבר מצטרף למשפחה. שלחו אותו רק למי שאתם רוצים."),
+    el("div",{class:"linkbox"}, linkIn),
+    el("div",{class:"linkbox"},
+      el("button",{class:"btn solid",onclick:share},"שיתוף"),
+      el("button",{class:"btn",onclick:copy},"העתקה"),
+      el("button",{class:"ghost",onclick:rotate},"יצירת קישור חדש")),
+
+    MEMBERS.length > 1 ? leave : null
+  ));
+};
+
 if (!configured){ window.__smartcartResolve(null); show(); }
 else {
-  let resolved = false;
-  onAuthStateChanged(auth, user => {
+  let started = false;
+  onAuthStateChanged(auth, async user => {
     if (!user){ location.replace("/login#login"); return; }
+    if (started) return;
+    started = true; ME = user;
     document.getElementById("who").textContent = user.email;
     const lo = document.getElementById("logout");
     lo.hidden = false;
     lo.onclick = async () => { await signOut(auth); try{ localStorage.removeItem("shopping-list-v1"); }catch(e){} location.replace("/login#login"); };
-    if (resolved) return;
-    resolved = true;
-    const ref = doc(db, "users", user.uid, "lists", "shopping");
+    show();
+
+    let res;
+    try { res = await resolveFamily(user); }
+    catch(e){ console.error(e); setSync("אין חיבור לשמירה. בדקי את ה־Rules ב־Firebase."); window.__smartcartResolve(null); return; }
+    FID = res.fid;
+    if (res.joined) toast("הצטרפת לרשימה המשפחתית");
+    showOffer(res.offer);
+
+    onSnapshot(doc(db,"families",FID), s => { FAMILY = s.exists() ? s.data() : null; rerenderFamily(); }, () => {});
+    onSnapshot(collection(db,"families",FID,"members"), s => {
+      MEMBERS = s.docs.map(d => ({ uid: d.id, ...d.data() }));
+      if (!MEMBERS.some(m => m.uid === ME.uid) && s.metadata && !s.metadata.fromCache) location.reload();
+      rerenderFamily();
+    }, () => location.reload());
+
+    const ref = doc(db,"families",FID,"lists","shopping");
     window.__smartcartResolve({
       ref: {
         set: data => setDoc(ref, data),
         onSnapshot: (next, err) => onSnapshot(ref, s => next({ exists: s.exists(), data: () => s.data() }), err)
       }
     });
-    show();
   });
 }
 </script>
