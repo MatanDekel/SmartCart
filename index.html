@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מה קונים השבוע</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F7F2; --surface:#FFFFFF; --ink:#1E2922; --muted:#617066;
+  --line:#DCE3D6; --green:#2D6A3E; --green-soft:#E3EEE2; --tag:#F3C433; --tag-ink:#3A2C00;
+  --danger:#B23A2E;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141A16; --surface:#1C241F; --ink:#E8EEE8; --muted:#9AAAA0;
+    --line:#2E3A32; --green:#7CC48E; --green-soft:#24362A; --tag:#E9B92A; --tag-ink:#2A2000;
+    --danger:#F08A7E; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141A16; --surface:#1C241F; --ink:#E8EEE8; --muted:#9AAAA0;
+  --line:#2E3A32; --green:#7CC48E; --green-soft:#24362A; --tag:#E9B92A; --tag-ink:#2A2000;
+  --danger:#F08A7E; color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Assistant",system-ui,"Segoe UI",Arial,sans-serif;font-size:17px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--green);outline-offset:2px;border-radius:6px}
+.wrap{max-width:640px;margin:0 auto;padding:12px 14px 100px}
+
+header h1{font-family:"Secular One","Assistant",sans-serif;font-weight:400;font-size:clamp(26px,7vw,34px);line-height:1.05;margin:2px 0 4px;letter-spacing:-.5px}
+header p{margin:0;color:var(--muted)}
+.sync{font-size:13px;color:var(--muted);margin-top:4px;min-height:18px}
+
+.addbox{margin:12px 0 6px;display:flex;gap:6px;flex-wrap:wrap}
+.addbox input{flex:1 1 200px;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface)}
+.addbox select{flex:1 1 140px;padding:10px 8px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface)}
+.addbox button{flex:0 0 auto;padding:10px 16px;border:0;border-radius:12px;background:var(--green);color:var(--bg);font-weight:700;cursor:pointer}
+.hint{font-size:14px;color:var(--muted);margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.cat{margin-top:10px}
+.cat summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:6px 0 3px;border-bottom:2px solid var(--ink)}
+.cat summary::-webkit-details-marker{display:none}
+.cat summary h2{font-family:"Secular One","Assistant",sans-serif;font-weight:400;font-size:19px;margin:0;flex:1}
+.cat summary .cnt{font-size:14px;color:var(--muted)}
+.cat summary .chev{transition:transform .2s;color:var(--muted)}
+.cat[open] summary .chev{transform:rotate(90deg)}
+
+.row{display:flex;align-items:center;gap:8px;padding:2px;border-bottom:1px solid var(--line);min-height:42px}
+.row .name{flex:1;background:none;border:0;text-align:right;padding:8px 0;cursor:pointer;font-size:16px}
+.row.on .name{font-weight:700}
+.step{display:flex;align-items:center;gap:2px}
+.step button{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.step .q{min-width:36px;text-align:center;font-weight:700;padding:2px 6px}
+.row.on .step .q{background:var(--tag);color:var(--tag-ink);border-radius:6px 14px 14px 6px;position:relative}
+.row.on .step .q::before{content:"";position:absolute;right:5px;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--bg)}
+.row:not(.on) .step .minus{visibility:hidden}
+.del{border:1.5px solid var(--danger);background:none;color:var(--danger);font-size:14px;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:8px}
+
+/* shopping mode */
+.list .row{cursor:pointer}
+.list .row .check{width:24px;height:24px;border-radius:7px;border:2px solid var(--green);flex:0 0 auto;display:grid;place-items:center}
+.list .row.done .check{background:var(--green)}
+.list .row.done .check::after{content:"";width:7px;height:12px;border:solid var(--bg);border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.list .row .ltxt{flex:1}
+.list .row.done .ltxt{text-decoration:line-through;color:var(--muted)}
+.list .row .lq{font-weight:700;background:var(--tag);color:var(--tag-ink);padding:2px 10px;border-radius:6px 14px 14px 6px}
+.list .row.done .lq{background:var(--line);color:var(--muted)}
+.progress{margin:10px 0 4px;font-weight:600}
+.bar{height:8px;background:var(--line);border-radius:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green);transition:width .3s}
+
+.empty{margin-top:40px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:6px}
+.finish{margin-top:20px;width:100%;padding:14px;border-radius:14px;border:2px solid var(--green);background:transparent;color:var(--green);font-weight:700;font-size:17px;cursor:pointer}
+.ghost{background:none;border:0;color:var(--green);text-decoration:underline;cursor:pointer;padding:4px 0;font-size:14px;font-weight:600}
+.finish.armed{background:var(--green);color:var(--bg)}
+
+nav.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;gap:8px;padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5}
+nav.tabs button{flex:1;max-width:300px;padding:12px;border-radius:12px;border:0;background:transparent;font-weight:700;font-size:16px;cursor:pointer;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{background:var(--green-soft);color:var(--green)}
+nav.tabs .badge{display:inline-block;min-width:22px;padding:0 6px;margin-inline-start:6px;border-radius:11px;background:var(--tag);color:var(--tag-ink);font-size:13px}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1;pointer-events:auto}
+.toast{display:flex;align-items:center;gap:12px}
+.toast button{background:none;border:0;color:var(--tag);font-weight:700;cursor:pointer;padding:2px 4px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">מה קונים השבוע</h1>
+    <p id="sub">בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה.</p>
+    <div class="sync" id="sync" aria-live="polite"></div>
+  </header>
+  <main id="main"></main>
+</div>
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-pick" aria-selected="true">בחירת מוצרים</button>
+  <button role="tab" id="tab-list" aria-selected="false">הרשימה שלי<span class="badge" id="badge" hidden></span></button>
+</nav>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const DEFAULT_CATS = ["פירות וירקות","חלב וביצים","לחם ומאפים","בשר, עוף ודגים","יבשים ושימורים","קפואים","שתייה","חטיפים ומתוקים","תבלינים ורטבים","ניקיון ובית","טיפוח והיגיינה"];
+const DEFAULT_PRODUCTS = {
+  "פירות וירקות":["עגבניות","מלפפונים","בצל","שום","תפוחי אדמה","גזר","פלפל","חסה","לימון","בננות","תפוחים","אבוקדו"],
+  "חלב וביצים":["חלב","ביצים","גבינה צהובה","קוטג'","גבינה לבנה","יוגורט","חמאה","שמנת"],
+  "לחם ומאפים":["לחם","פיתות","לחמניות"],
+  "בשר, עוף ודגים":["חזה עוף","שניצל","בשר טחון","סלמון"],
+  "יבשים ושימורים":["אורז","פסטה","קמח","סוכר","שמן","טונה","תירס","קפה","תה","דגני בוקר"],
+  "קפואים":["אפונה קפואה","ירקות קפואים"],
+  "שתייה":["מים","סודה","מיץ"],
+  "חטיפים ומתוקים":["במבה","ביסלי","שוקולד"],
+  "תבלינים ורטבים":["מלח","פלפל שחור","פפריקה","רסק עגבניות","קטשופ","טחינה"],
+  "ניקיון ובית":["נייר טואלט","מגבות נייר","סבון כלים","אבקת כביסה","שקיות זבל"],
+  "טיפוח והיגיינה":["שמפו","משחת שיניים","סבון גוף"]
+};
+const LS_KEY = "shopping-list-v1";
+const uid = () => Math.random().toString(36).slice(2,10);
+
+function freshState(){
+  const catalog = [];
+  for (const c of DEFAULT_CATS) for (const n of (DEFAULT_PRODUCTS[c]||[])) catalog.push({id:uid(),name:n,cat:c});
+  return {v:1, cats:[...DEFAULT_CATS], catalog, qty:{}, done:{}};
+}
+function valid(s){return s && Array.isArray(s.cats) && Array.isArray(s.catalog) && typeof s.qty==="object"}
+
+let state;
+try { const raw = localStorage.getItem(LS_KEY); state = raw ? JSON.parse(raw) : null; } catch(e){ state = null; }
+if (!valid(state)) state = freshState();
+state.done = state.done || {};
+
+let view = location.hash === "#list" ? "list" : "pick";
+let editMode = false;
+const openCats = new Set();
+
+/* ---------- persistence ---------- */
+let dbRef = null, saveTimer = null, saving = false, pending = false, lastSynced = "";
+const syncEl = document.getElementById("sync");
+function setSync(t){ syncEl.textContent = t; }
+
+function persist(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){}
+  if (!dbRef) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 700);
+}
+async function flush(){
+  if (!dbRef) return;
+  if (saving){ pending = true; return; }
+  const body = JSON.stringify(state);
+  if (body === lastSynced) return;
+  saving = true; setSync("שומרת…");
+  try { await dbRef.set(JSON.parse(body)); lastSynced = body; setSync("נשמר בחשבון שלך"); }
+  catch(e){ setSync("נשמר רק במכשיר הזה"); }
+  saving = false;
+  if (pending){ pending = false; flush(); }
+}
+(async () => {
+  try{
+    if (typeof window.claude === "undefined" || !window.claude.use){ setSync("נשמר במכשיר הזה"); return; }
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db || !user){ setSync("נשמר במכשיר הזה"); return; }
+    const id = await user.id();
+    if (!id){ setSync("נשמר במכשיר הזה"); return; }
+    dbRef = db.collection("data/users/" + id).doc("shopping");
+    let first = true;
+    const timer = setTimeout(()=>{ if(first) setSync("נשמר במכשיר הזה"); }, 10000);
+    dbRef.onSnapshot(snap => {
+      const d = snap.exists ? snap.data() : null;
+      if (first){
+        first = false; clearTimeout(timer);
+        if (valid(d)){ state = JSON.parse(JSON.stringify(d)); state.done = state.done||{}; lastSynced = JSON.stringify(state); try{localStorage.setItem(LS_KEY, lastSynced);}catch(e){} render(); }
+        else { flush(); }
+        setSync("נשמר בחשבון שלך");
+        return;
+      }
+      if (valid(d) && !saving && !saveTimer_active()){
+        const s = JSON.stringify(d);
+        if (s !== lastSynced && s !== JSON.stringify(state)){ state = JSON.parse(s); state.done = state.done||{}; lastSynced = s; render(); }
+      }
+    }, () => setSync("נשמר במכשיר הזה"));
+  }catch(e){ setSync("נשמר במכשיר הזה"); }
+})();
+let saveTimerFlag = false;
+function saveTimer_active(){ return saveTimerFlag; }
+const _persist = persist;
+persist = function(){ saveTimerFlag = true; _persist(); setTimeout(()=>{saveTimerFlag=false}, 1500); };
+
+/* ---------- helpers ---------- */
+const main = document.getElementById("main");
+function el(tag, attrs={}, ...kids){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)){
+    if (k==="class") e.className=v; else if (k.startsWith("on")) e.addEventListener(k.slice(2),v);
+    else if (v===true) e.setAttribute(k,""); else if (v!==false && v!=null) e.setAttribute(k,v);
+  }
+  for (const k of kids.flat()) if (k!=null) e.append(k.nodeType?k:document.createTextNode(k));
+  return e;
+}
+function toast(msg, actionLabel, action){
+  const t=document.getElementById("toast");
+  t.replaceChildren(el("span",{},msg));
+  if (actionLabel) t.append(el("button",{onclick:()=>{ t.classList.remove("show"); action(); }},actionLabel));
+  t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"), actionLabel?5000:2200);
+}
+function setQty(id, q){
+  q = Math.max(0, Math.min(99, q));
+  if (q===0){ delete state.qty[id]; delete state.done[id]; } else state.qty[id]=q;
+  persist(); render();
+}
+const selected = () => state.catalog.filter(p => state.qty[p.id] > 0);
+
+/* ---------- views ---------- */
+function renderPick(){
+  const nameIn = el("input",{type:"text",placeholder:"מוצר חדש, למשל: חומוס",maxlength:"40","aria-label":"שם מוצר חדש"});
+  const catSel = el("select",{"aria-label":"קטגוריה"}, state.cats.map(c=>el("option",{value:c},c)));
+  const add = () => {
+    const n = nameIn.value.trim(); if (!n) { nameIn.focus(); return; }
+    const exists = state.catalog.find(p => p.name === n && p.cat === catSel.value);
+    if (exists){ setQty(exists.id, (state.qty[exists.id]||0)+1); toast(`${n} כבר קיים – נוסף לרשימה`); return; }
+    const p = {id:uid(), name:n, cat:catSel.value};
+    state.catalog.push(p); state.qty[p.id]=1; openCats.add(p.cat);
+    persist(); render(); toast(`${n} נוסף ויישאר גם לשבועות הבאים`);
+  };
+  nameIn.addEventListener("keydown", e => { if (e.key==="Enter") add(); });
+
+  main.replaceChildren(
+    el("div",{class:"addbox"}, nameIn, catSel, el("button",{onclick:add},"הוספה")),
+    el("p",{class:"hint"},
+      editMode ? "מצב עריכה: לחצי ״מחיקה״ ליד מוצר כדי להסיר אותו." : "מוצר חדש נשמר גם לשבוע הבא.",
+      el("button",{class:"ghost",onclick:()=>{editMode=!editMode;render();}}, editMode?"סיום עריכה":"עריכה ומחיקה")),
+    ...state.cats.map(c => {
+      const items = state.catalog.filter(p=>p.cat===c);
+      const chosen = items.filter(p=>state.qty[p.id]>0).length;
+      const d = el("details",{class:"cat",open:openCats.has(c)},
+        el("summary",{}, el("span",{class:"chev","aria-hidden":"true"},"‹"), el("h2",{},c), el("span",{class:"cnt"}, chosen ? `${chosen} נבחרו` : `${items.length} מוצרים`)),
+        items.length ? items.map(p => {
+          const q = state.qty[p.id]||0;
+          return el("div",{class:"row"+(q?" on":"")},
+            el("button",{class:"name",onclick:()=>setQty(p.id,q+1)},p.name),
+            editMode ? el("button",{class:"del",onclick:()=>{
+              const idx = state.catalog.findIndex(x=>x.id===p.id);
+              if (idx<0) return;
+              const bq = state.qty[p.id], bd = state.done[p.id];
+              state.catalog.splice(idx,1); delete state.qty[p.id]; delete state.done[p.id]; persist(); render();
+              toast(`${p.name} נמחק`, "ביטול", ()=>{
+                state.catalog.splice(Math.min(idx,state.catalog.length),0,p);
+                if (bq) state.qty[p.id]=bq; if (bd) state.done[p.id]=true;
+                persist(); render();
+              });
+            }},"מחיקה") :
+            el("div",{class:"step"},
+              el("button",{class:"minus","aria-label":`פחות ${p.name}`,onclick:()=>setQty(p.id,q-1)},"−"),
+              el("span",{class:"q","aria-live":"polite"}, q? String(q) : "0"),
+              el("button",{"aria-label":`עוד ${p.name}`,onclick:()=>setQty(p.id,q+1)},"+"))
+          );
+        }) : el("p",{class:"hint",style:"padding-top:10px"},"אין עדיין מוצרים בקטגוריה הזו.")
+      );
+      d.addEventListener("toggle",()=>{ d.open?openCats.add(c):openCats.delete(c); });
+      return d;
+    })
+  );
+}
+
+function renderList(){
+  const sel = selected();
+  if (!sel.length){
+    main.replaceChildren(el("div",{class:"empty"}, el("b",{},"הרשימה ריקה"), "עברי ל״בחירת מוצרים״ והוסיפי את מה שחסר בבית."));
+    return;
+  }
+  const doneCount = sel.filter(p=>state.done[p.id]).length;
+  const pct = Math.round(doneCount/sel.length*100);
+  main.replaceChildren(
+    el("div",{class:"progress"}, doneCount===sel.length ? "הכול בעגלה!" : `נשארו ${sel.length-doneCount} מתוך ${sel.length}`),
+    el("div",{class:"bar"}, el("i",{style:`width:${pct}%`})),
+    el("div",{class:"list"},
+      state.cats.map(c => {
+        const items = sel.filter(p=>p.cat===c).sort((a,b)=>(!!state.done[a.id])-(!!state.done[b.id]));
+        if (!items.length) return null;
+        return el("section",{class:"cat"},
+          el("div",{style:"border-bottom:2px solid var(--ink);padding:4px 0 2px"}, el("h2",{style:"font-family:'Secular One',Assistant,sans-serif;font-weight:400;font-size:19px;margin:0"},c)),
+          items.map(p => el("div",{class:"row"+(state.done[p.id]?" done":""),role:"checkbox","aria-checked":String(!!state.done[p.id]),tabindex:"0",
+            onclick:()=>toggleDone(p.id), onkeydown:e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleDone(p.id);} }},
+            el("span",{class:"check","aria-hidden":"true"}),
+            el("span",{class:"ltxt"},p.name),
+            el("span",{class:"lq"},"×"+state.qty[p.id])))
+        );
+      })
+    ),
+    el("button",{class:"finish",onclick:(e)=>{
+      const b = e.currentTarget;
+      if (!b.classList.contains("armed")){
+        b.classList.add("armed"); b.textContent = "לחיצה נוספת תאפס את הכמויות";
+        setTimeout(()=>{ if(b.isConnected){ b.classList.remove("armed"); b.textContent="סיימתי לקנות – רשימה חדשה"; } }, 4000);
+        return;
+      }
+      state.qty = {}; state.done = {}; persist(); view="pick"; location.hash=""; render(); toast("רשימה חדשה – אפשר להתחיל לבחור");
+    }},"סיימתי לקנות – רשימה חדשה")
+  );
+}
+function toggleDone(id){ state.done[id] ? delete state.done[id] : state.done[id]=true; persist(); render(); }
+
+function render(){
+  document.getElementById("tab-pick").setAttribute("aria-selected", view==="pick");
+  document.getElementById("tab-list").setAttribute("aria-selected", view==="list");
+  const n = selected().length, b = document.getElementById("badge");
+  b.hidden = !n; b.textContent = n;
+  document.getElementById("sub").textContent = view==="pick"
+    ? "בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה."
+    : "לחיצה על מוצר מסמנת שהוא כבר בעגלה.";
+  view==="pick" ? renderPick() : renderList();
+}
+document.getElementById("tab-pick").onclick = ()=>{ view="pick"; history.replaceState(null,"","#pick"); render(); scrollTo(0,0); };
+document.getElementById("tab-list").onclick = ()=>{ view="list"; history.replaceState(null,"","#list"); render(); scrollTo(0,0); };
+window.addEventListener("hashchange",()=>{ view = location.hash==="#list"?"list":"pick"; render(); });
+render();
+</script>
+</body>
+</html>
