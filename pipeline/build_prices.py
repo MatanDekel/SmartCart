@@ -25,6 +25,12 @@ CHAINS = {
     "TIV_TAAM": "טיב טעם",
     "HAZI_HINAM": "חצי חינם",
     "YOHANANOF": "יוחננוף",
+    "SUPER_SAPIR": "סופר ספיר / נטו חיסכון",
+    "KING_STORE": "קינג סטור",
+    "SHEFA_BARCART_ASHEM": "שפע ברכת השם",
+    "NETIV_HASED": "נתיב החסד",
+    "ZOL_VEBEGADOL": "זול ובגדול",
+    "FRESH_MARKET_AND_SUPER_DOSH": "פרש מרקט / סופר דוש",
 }
 DUMPS = os.environ.get("XML_STORE_PATH", "dumps")
 OUT = os.environ.get("OUT_DIR", "out")
