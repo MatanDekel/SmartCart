@@ -121,6 +121,12 @@ nav.tabs button{padding:12px 6px}
 #offer .acts{display:flex;gap:8px;flex-wrap:wrap}
 #offer button{padding:8px 14px;border-radius:10px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-weight:700;cursor:pointer}
 #offer button.solid{background:var(--green);color:var(--bg)}
+.askbox{margin-top:20px;padding:14px;border-radius:14px;border:2px solid var(--green);background:var(--green-soft)}
+.askbox p{margin:0 0 6px;font-size:15px}
+.askbox .q2{font-weight:700;font-size:17px;margin-bottom:10px}
+.askbox .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.askbox .acts button:not(.ghost){padding:10px 14px;border-radius:10px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-weight:700;cursor:pointer}
+.askbox .acts button.solid{background:var(--green);color:var(--bg)}
 </style>
 <script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
@@ -417,16 +423,40 @@ function renderList(){
         );
       })
     ),
-    el("button",{class:"finish",onclick:(e)=>{
-      const b = e.currentTarget;
-      if (!b.classList.contains("armed")){
-        b.classList.add("armed"); b.textContent = "לחיצה נוספת תאפס את הכמויות";
-        setTimeout(()=>{ if(b.isConnected){ b.classList.remove("armed"); b.textContent="סיימתי לקנות – רשימה חדשה"; } }, 4000);
-        return;
-      }
-      state.qty = {}; state.done = {}; persist(); view="pick"; location.hash=""; render(); toast("רשימה חדשה – אפשר להתחיל לבחור");
-    }},"סיימתי לקנות – רשימה חדשה")
+    el("div",{id:"finishBox"}, finishButton())
   );
+}
+function startNewList(carry){
+  const left = {};
+  if (carry) for (const p of selected()) if (!state.done[p.id]) left[p.id] = state.qty[p.id];
+  const n = Object.keys(left).length;
+  state.qty = left; state.done = {};
+  persist(); view="pick"; history.replaceState(null,"","#pick"); render(); scrollTo(0,0);
+  toast(n ? `רשימה חדשה – ${n} מוצרים שלא נקנו עברו אליה` : "רשימה חדשה – אפשר להתחיל לבחור");
+}
+function finishButton(){
+  return el("button",{class:"finish",onclick:()=>{
+    const box = document.getElementById("finishBox");
+    const notBought = selected().filter(p => !state.done[p.id]);
+    const cancel = el("button",{class:"ghost",onclick:()=>box.replaceChildren(finishButton())},"ביטול");
+    if (notBought.length){
+      const names = notBought.slice(0,4).map(p=>p.name).join(", ") + (notBought.length > 4 ? ` ועוד ${notBought.length-4}` : "");
+      box.replaceChildren(el("div",{class:"askbox"},
+        el("p",{}, `${notBought.length === 1 ? "מוצר אחד לא סומן" : notBought.length + " מוצרים לא סומנו"} כנקנה: ${names}.`),
+        el("p",{class:"q2"},"להעביר אותם לרשימה הבאה?"),
+        el("div",{class:"acts"},
+          el("button",{class:"solid",onclick:()=>startNewList(true)},"כן, להעביר"),
+          el("button",{onclick:()=>startNewList(false)},"לא, להתחיל ריקה"),
+          cancel)));
+    } else {
+      box.replaceChildren(el("div",{class:"askbox"},
+        el("p",{class:"q2"},"הכול נקנה. להתחיל רשימה חדשה?"),
+        el("div",{class:"acts"},
+          el("button",{class:"solid",onclick:()=>startNewList(false)},"כן, רשימה חדשה"),
+          cancel)));
+    }
+    box.scrollIntoView({block:"nearest"});
+  }},"סיימתי לקנות – רשימה חדשה");
 }
 function toggleDone(id){ state.done[id] ? delete state.done[id] : state.done[id]=true; persist(); render(); }
 
