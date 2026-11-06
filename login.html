@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SmartCart – הרשמה</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2D6A3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F7F2; --surface:#FFFFFF; --ink:#1E2922; --muted:#617066;
+  --line:#DCE3D6; --green:#2D6A3E; --green-soft:#E3EEE2; --tag:#F3C433; --tag-ink:#3A2C00;
+  --danger:#B23A2E; color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141A16; --surface:#1C241F; --ink:#E8EEE8; --muted:#9AAAA0; --line:#2E3A32;
+    --green:#7CC48E; --green-soft:#24362A; --tag:#E9B92A; --tag-ink:#2A2000; --danger:#F08A7E; color-scheme:dark; }
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Assistant",system-ui,"Segoe UI",Arial,sans-serif;font-size:17px;line-height:1.45;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--green);outline-offset:2px}
+.card{width:100%;max-width:400px}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.logo img{width:44px;height:44px}
+h1{font-family:"Secular One","Assistant",sans-serif;font-weight:400;font-size:34px;line-height:1.05;margin:0}
+.lead{color:var(--muted);margin:6px 0 22px}
+.switch{display:flex;background:var(--green-soft);border-radius:12px;padding:4px;margin-bottom:18px}
+.switch button{flex:1;border:0;background:transparent;padding:10px;border-radius:9px;font-weight:700;color:var(--muted);cursor:pointer}
+.switch button[aria-selected="true"]{background:var(--surface);color:var(--green);box-shadow:0 1px 0 var(--line)}
+label{display:block;font-weight:600;font-size:15px;margin:12px 0 4px}
+input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);direction:ltr;text-align:right}
+input:focus{border-color:var(--green);outline:none}
+.submit{width:100%;margin-top:20px;padding:14px;border:0;border-radius:12px;background:var(--green);color:var(--bg);font-weight:700;font-size:17px;cursor:pointer}
+.submit:disabled{opacity:.6;cursor:wait}
+.msg{min-height:22px;margin-top:12px;font-size:15px}
+.msg.err{color:var(--danger)} .msg.ok{color:var(--green)}
+.link{background:none;border:0;color:var(--green);text-decoration:underline;cursor:pointer;padding:6px 0;font-size:15px;font-weight:600}
+.setup{background:var(--surface);border:1.5px dashed var(--danger);border-radius:12px;padding:14px;font-size:15px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo"><img src="/favicon.svg" alt=""><h1>SmartCart</h1></div>
+  <p class="lead" id="lead">נרשמים פעם אחת, והרשימה מחכה לך בכל מכשיר.</p>
+
+  <div class="setup" id="setup" hidden>עוד לא הוגדר Firebase. צריך למלא את הפרטים בקובץ <b>firebase-config.js</b>.</div>
+
+  <div id="ui">
+    <div class="switch" role="tablist">
+      <button role="tab" id="t-signup" aria-selected="true">הרשמה</button>
+      <button role="tab" id="t-login" aria-selected="false">כבר יש לי חשבון</button>
+    </div>
+    <form id="form" novalidate>
+      <label for="email">מייל</label>
+      <input id="email" type="email" autocomplete="email" inputmode="email" required>
+      <label for="pass">סיסמה</label>
+      <input id="pass" type="password" autocomplete="new-password" minlength="6" required>
+      <div id="pass2-wrap">
+        <label for="pass2">אימות סיסמה</label>
+        <input id="pass2" type="password" autocomplete="new-password" minlength="6">
+      </div>
+      <button class="submit" id="submit" type="submit">יצירת חשבון</button>
+      <div class="msg" id="msg" role="status" aria-live="polite"></div>
+      <button type="button" class="link" id="forgot" hidden>שכחתי סיסמה</button>
+    </form>
+  </div>
+</main>
+
+<script type="module">
+import { configured, auth, authMessage } from "./auth.js";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, setPersistence, browserLocalPersistence }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const $ = id => document.getElementById(id);
+if (!configured){ $("setup").hidden = false; $("ui").hidden = true; }
+else {
+  auth.languageCode = "he";
+  setPersistence(auth, browserLocalPersistence).catch(()=>{});
+  onAuthStateChanged(auth, u => { if (u) location.replace("/"); });
+
+  let mode = location.hash === "#login" ? "login" : "signup";
+  const msg = (t, ok) => { $("msg").textContent = t; $("msg").className = "msg " + (ok ? "ok" : "err"); };
+  function setMode(m){
+    mode = m; msg("");
+    $("t-signup").setAttribute("aria-selected", m==="signup");
+    $("t-login").setAttribute("aria-selected", m==="login");
+    $("pass2-wrap").hidden = m!=="signup";
+    $("forgot").hidden = m!=="login";
+    $("pass").autocomplete = m==="signup" ? "new-password" : "current-password";
+    $("submit").textContent = m==="signup" ? "יצירת חשבון" : "התחברות";
+    history.replaceState(null, "", m==="login" ? "#login" : "#signup");
+  }
+  $("t-signup").onclick = () => setMode("signup");
+  $("t-login").onclick = () => setMode("login");
+  setMode(mode);
+
+  $("form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const email = $("email").value.trim(), pass = $("pass").value;
+    if (!email) return msg("צריך להזין מייל.");
+    if (pass.length < 6) return msg("הסיסמה צריכה להיות באורך 6 תווים לפחות.");
+    if (mode==="signup" && pass !== $("pass2").value) return msg("הסיסמאות לא תואמות.");
+    $("submit").disabled = true; msg("");
+    try {
+      if (mode==="signup") await createUserWithEmailAndPassword(auth, email, pass);
+      else await signInWithEmailAndPassword(auth, email, pass);
+      location.replace("/");
+    } catch(err){ msg(authMessage(err)); $("submit").disabled = false; }
+  });
+
+  $("forgot").onclick = async () => {
+    const email = $("email").value.trim();
+    if (!email) return msg("כתבי את המייל שלך למעלה ואז לחצי שוב.");
+    try { await sendPasswordResetEmail(auth, email); msg("שלחנו לך מייל לאיפוס הסיסמה.", true); }
+    catch(err){ msg(authMessage(err)); }
+  };
+}
+</script>
+</body>
+</html>

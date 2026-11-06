@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="he" dir="rtl" class="auth-pending">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -98,14 +98,18 @@ nav.tabs .badge{display:inline-block;min-width:22px;padding:0 6px;margin-inline-
 .toast{display:flex;align-items:center;gap:12px}
 .toast button{background:none;border:0;color:var(--tag);font-weight:700;cursor:pointer;padding:2px 4px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+.auth-pending body{visibility:hidden}
+.userbar{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:2px;flex-wrap:wrap}
+.userbar button{background:none;border:0;color:var(--green);text-decoration:underline;cursor:pointer;font-size:13px;font-weight:600;padding:2px 0}
 </style>
+<script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1 id="title">מה קונים השבוע</h1>
     <p id="sub">בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה.</p>
-    <div class="sync" id="sync" aria-live="polite"></div>
+    <div class="userbar"><span id="who"></span><button id="logout" hidden>התנתקות</button><span class="sync" id="sync" aria-live="polite"></span></div>
   </header>
   <main id="main"></main>
 </div>
@@ -166,19 +170,16 @@ async function flush(){
   const body = JSON.stringify(state);
   if (body === lastSynced) return;
   saving = true; setSync("שומרת…");
-  try { await dbRef.set(JSON.parse(body)); lastSynced = body; setSync("נשמר בחשבון שלך"); }
+  try { await dbRef.set(JSON.parse(body)); lastSynced = body; setSync("מסונכרן"); }
   catch(e){ setSync("נשמר רק במכשיר הזה"); }
   saving = false;
   if (pending){ pending = false; flush(); }
 }
 (async () => {
   try{
-    if (typeof window.claude === "undefined" || !window.claude.use){ setSync("נשמר במכשיר הזה"); return; }
-    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
-    if (!db || !user){ setSync("נשמר במכשיר הזה"); return; }
-    const id = await user.id();
-    if (!id){ setSync("נשמר במכשיר הזה"); return; }
-    dbRef = db.collection("data/users/" + id).doc("shopping");
+    const ctx = await window.smartcartAuth;
+    if (!ctx){ setSync("נשמר במכשיר הזה"); return; }
+    dbRef = ctx.ref;
     let first = true;
     const timer = setTimeout(()=>{ if(first) setSync("נשמר במכשיר הזה"); }, 10000);
     dbRef.onSnapshot(snap => {
@@ -187,7 +188,7 @@ async function flush(){
         first = false; clearTimeout(timer);
         if (valid(d)){ state = JSON.parse(JSON.stringify(d)); state.done = state.done||{}; lastSynced = JSON.stringify(state); try{localStorage.setItem(LS_KEY, lastSynced);}catch(e){} render(); }
         else { flush(); }
-        setSync("נשמר בחשבון שלך");
+        setSync("מסונכרן");
         return;
       }
       if (valid(d) && !saving && !saveTimer_active()){
@@ -330,6 +331,34 @@ document.getElementById("tab-pick").onclick = ()=>{ view="pick"; history.replace
 document.getElementById("tab-list").onclick = ()=>{ view="list"; history.replaceState(null,"","#list"); render(); scrollTo(0,0); };
 window.addEventListener("hashchange",()=>{ view = location.hash==="#list"?"list":"pick"; render(); });
 render();
+</script>
+<script type="module">
+import { configured, auth, db } from "./auth.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const show = () => document.documentElement.classList.remove("auth-pending");
+if (!configured){ window.__smartcartResolve(null); show(); }
+else {
+  let resolved = false;
+  onAuthStateChanged(auth, user => {
+    if (!user){ location.replace("/login#login"); return; }
+    document.getElementById("who").textContent = user.email;
+    const lo = document.getElementById("logout");
+    lo.hidden = false;
+    lo.onclick = async () => { await signOut(auth); try{ localStorage.removeItem("shopping-list-v1"); }catch(e){} location.replace("/login#login"); };
+    if (resolved) return;
+    resolved = true;
+    const ref = doc(db, "users", user.uid, "lists", "shopping");
+    window.__smartcartResolve({
+      ref: {
+        set: data => setDoc(ref, data),
+        onSnapshot: (next, err) => onSnapshot(ref, s => next({ exists: s.exists(), data: () => s.data() }), err)
+      }
+    });
+    show();
+  });
+}
 </script>
 </body>
 </html>
