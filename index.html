@@ -45,7 +45,8 @@ header h1{font-family:"Secular One","Assistant",sans-serif;font-weight:400;font-
 header p{margin:0;color:var(--muted)}
 .sync{font-size:13px;color:var(--muted);margin-top:4px;min-height:18px}
 
-.addbox{margin:12px 0 6px;display:flex;gap:6px;flex-wrap:wrap}
+.search{display:block;width:100%;margin:12px 0 0;padding:11px 14px;border:1.5px solid var(--ink);border-radius:12px;background:var(--surface);font-size:16px}
+.addbox{margin:8px 0 6px;display:flex;gap:6px;flex-wrap:wrap}
 .addbox input{flex:1 1 200px;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface)}
 .addbox select{flex:1 1 140px;padding:10px 8px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface)}
 .addbox button{flex:0 0 auto;padding:10px 16px;border:0;border-radius:12px;background:var(--green);color:var(--bg);font-weight:700;cursor:pointer}
@@ -303,6 +304,8 @@ function deleteCategory(c){
   });
 }
 
+let filterText = "";
+const norm = s => (s || "").trim().toLowerCase();
 function renderPick(){
   const nameIn = el("input",{type:"text",placeholder:"מוצר חדש, למשל: חומוס",maxlength:"40","aria-label":"שם מוצר חדש"});
   const catSel = el("select",{"aria-label":"קטגוריה"}, state.cats.map(c=>el("option",{value:c},c)));
@@ -329,16 +332,26 @@ function renderPick(){
     catBox = el("div",{class:"addbox"}, catIn, el("button",{onclick:addCat},"הוספת קטגוריה"));
   }
 
+  const catsWrap = el("div");
+  const searchIn = el("input",{type:"search",class:"search",placeholder:"חיפוש מוצר…","aria-label":"חיפוש מוצר לפי שם",autocomplete:"off",enterkeyhint:"search"});
+  searchIn.value = filterText;
+  searchIn.addEventListener("input", () => { filterText = searchIn.value; fillCats(); });
   main.replaceChildren(
+    searchIn,
     el("div",{class:"addbox"}, nameIn, catSel, el("button",{onclick:add},"הוספה")),
     el("p",{class:"hint"},
       editMode ? "מצב עריכה: אפשר למחוק מוצרים וקטגוריות ולהוסיף קטגוריה חדשה." : "מוצר חדש נשמר גם לשבוע הבא.",
       el("button",{class:"ghost",onclick:()=>{editMode=!editMode;render();}}, editMode?"סיום עריכה":"עריכה ומחיקה")),
     ...(catBox ? [catBox] : []),
-    ...state.cats.map(c => {
-      const items = state.catalog.filter(p=>p.cat===c);
+    catsWrap
+  );
+  const fillCats = () => {
+    const q = norm(filterText);
+  const parts = state.cats.map(c => {
+      const items = state.catalog.filter(p=>p.cat===c && (!q || norm(p.name).includes(q)));
+      if (q && !items.length) return null;
       const chosen = items.filter(p=>state.qty[p.id]>0).length;
-      const d = el("details",{class:"cat",open:openCats.has(c)},
+      const d = el("details",{class:"cat",open: q ? true : openCats.has(c)},
         el("summary",{}, el("span",{class:"chev","aria-hidden":"true"},"‹"), el("h2",{},c), el("span",{class:"cnt"}, chosen ? `${chosen} נבחרו` : `${items.length} מוצרים`)),
         items.length ? items.map(p => {
           const q = state.qty[p.id]||0, u = unitOf(p);
@@ -366,10 +379,17 @@ function renderPick(){
         editMode ? el("div",{class:"catdel"}, el("button",{class:"del",onclick:()=>deleteCategory(c)},
           items.length ? `מחיקת הקטגוריה ו־${items.length} המוצרים שבה` : "מחיקת הקטגוריה")) : null
       );
-      d.addEventListener("toggle",()=>{ d.open?openCats.add(c):openCats.delete(c); });
+      d.addEventListener("toggle",()=>{ if (q) return; d.open?openCats.add(c):openCats.delete(c); });
       return d;
-    })
-  );
+    });
+    const shown = parts.filter(Boolean);
+    if (q && !shown.length){
+      catsWrap.replaceChildren(el("div",{class:"empty",style:"margin-top:24px"},
+        el("b",{},"לא נמצא מוצר כזה"),
+        el("button",{class:"ghost",onclick:()=>{ nameIn.value = filterText.trim(); nameIn.focus(); scrollTo(0,0); }},`הוספת "${filterText.trim()}" כמוצר חדש`)));
+    } else catsWrap.replaceChildren(...shown);
+  };
+  fillCats();
 }
 
 function renderList(){
