@@ -17,3 +17,10 @@
 5. Firestore Database → Create database, ובלשונית Rules מדביקים את התוכן של `firestore.rules`.
 
 כל משתמש רואה רק את הרשימה שלו (`users/{uid}/lists/shopping`).
+
+## השוואת מחירים
+
+- `pipeline/build_prices.py` מוריד כל יום את קבצי שקיפות המחירים של הרשתות (באמצעות `il-supermarket-scraper`) ובונה מהם קבצי JSON מצומצמים.
+- `.github/workflows/prices.yml` מריץ אותו כל בוקר ומפרסם את התוצאה לענף `price-data`. אפשר להריץ ידנית: Actions ← Update supermarket prices ← Run workflow.
+- האתר קורא את הנתונים מ־`raw.githubusercontent.com/MatanDekel/SmartCart/price-data/`. ב־`report.json` שבענף רואים אילו רשתות הצליחו.
+- מחירי מדף בלבד, בלי מבצעים.

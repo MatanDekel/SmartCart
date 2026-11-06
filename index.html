@@ -127,6 +127,36 @@ nav.tabs button{padding:12px 6px}
 .askbox .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .askbox .acts button:not(.ghost){padding:10px 14px;border-radius:10px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-weight:700;cursor:pointer}
 .askbox .acts button.solid{background:var(--green);color:var(--bg)}
+.cmpbtn{width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1.5px solid var(--tag);background:var(--tag);color:var(--tag-ink);font-weight:700;font-size:16px;cursor:pointer}
+.btn{padding:8px 14px;border-radius:10px;border:1.5px solid var(--green);background:transparent;color:var(--green);font-weight:700;cursor:pointer}
+.btn.solid{background:var(--green);color:var(--bg)}
+.cmpset h3,.cmph{font-family:"Secular One","Assistant",sans-serif;font-weight:400;font-size:19px;margin:18px 0 8px;padding-bottom:3px;border-bottom:2px solid var(--ink)}
+.cmpset input{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface)}
+.cmpset .acts{display:flex;gap:10px;align-items:center;margin-top:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600}
+.chip.on{background:var(--green);border-color:var(--green);color:var(--bg)}
+.cmpsum{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:15px}
+.cmpsum span{flex:1}
+details.store{border:1.5px solid var(--line);border-radius:12px;margin-top:8px;background:var(--surface)}
+details.store.best{border-color:var(--green);border-width:2px}
+details.store summary{list-style:none;display:flex;gap:10px;align-items:center;padding:10px 12px;cursor:pointer}
+details.store summary::-webkit-details-marker{display:none}
+.sname{flex:1;display:flex;flex-direction:column;min-width:0}
+.sname small,.stot small{color:var(--muted);font-size:13px}
+.stot{display:flex;flex-direction:column;align-items:flex-end;white-space:nowrap}
+.stot b{font-size:18px}
+.pline{display:flex;justify-content:space-between;gap:10px;padding:6px 12px;border-top:1px solid var(--line);font-size:15px}
+.pline small,.lk{color:var(--muted);font-size:12px}
+details.store .hint{padding:6px 12px}
+.linkpanel{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(20px + env(safe-area-inset-bottom,0px))}
+.lhead{display:flex;align-items:center;gap:10px;justify-content:space-between;font-size:18px}
+.lres{margin-top:8px}
+.lrow{display:flex;gap:10px;align-items:center;width:100%;text-align:right;padding:9px 4px;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer}
+.lrow .ltext{flex:1;display:flex;flex-direction:column}
+.lrow small{color:var(--muted);font-size:13px}
+.lcheck{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--green);display:grid;place-items:center;color:var(--green);font-weight:700;flex:0 0 auto}
+.lrow.on .lcheck{background:var(--green);color:var(--bg)}
 </style>
 <script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
@@ -189,7 +219,7 @@ if (!valid(state)) state = freshState();
 state.done = state.done || {};
 migrate(state);
 
-const viewFromHash = () => ({"#list":"list","#family":"family"})[location.hash] || "pick";
+const viewFromHash = () => ({"#list":"list","#family":"family","#compare":"compare"})[location.hash] || "pick";
 let view = viewFromHash();
 let editMode = false;
 const openCats = new Set();
@@ -407,6 +437,7 @@ function renderList(){
   const doneCount = sel.filter(p=>state.done[p.id]).length;
   const pct = Math.round(doneCount/sel.length*100);
   main.replaceChildren(
+    el("button",{class:"cmpbtn",onclick:()=>{ view="compare"; history.replaceState(null,"","#compare"); render(); scrollTo(0,0); }},"💰 איפה הכי זול לקנות את הרשימה?"),
     el("div",{class:"progress"}, doneCount===sel.length ? "הכול בעגלה!" : `נשארו ${sel.length-doneCount} מתוך ${sel.length}`),
     el("div",{class:"bar"}, el("i",{style:`width:${pct}%`})),
     el("div",{class:"list"},
@@ -465,17 +496,238 @@ function finishButton(){
 }
 function toggleDone(id){ state.done[id] ? delete state.done[id] : state.done[id]=true; persist(); render(); }
 
+/* ---------- price comparison ---------- */
+const PRICE_DATA = "https://raw.githubusercontent.com/MatanDekel/SmartCart/price-data/";
+const PD = { index:null, stores:null, bases:{}, storeData:{}, error:null, busy:false, editSettings:false };
+async function pdFetch(path){
+  const r = await fetch(PRICE_DATA + path, { cache: "no-cache" });
+  if (!r.ok) throw new Error(`${r.status} ${path}`);
+  return r.json();
+}
+const cleanTxt = s => (s || "").toLowerCase().replace(/["'״׳`.,()\-–_/\\%]+/g, " ").replace(/\s+/g, " ").trim();
+const isShortCode = c => String(c).replace(/\D/g,"").length < 8;
+const chainName = key => (PD.index?.chains.find(c => c.key === key) || {}).name || key;
+const shek = n => "₪" + n.toFixed(2);
+
+async function loadMeta(){
+  if (PD.index && PD.stores) return;
+  [PD.index, PD.stores] = await Promise.all([pdFetch("index.json"), pdFetch("stores.json")]);
+}
+async function loadBase(key){
+  if (PD.bases[key]) return PD.bases[key];
+  const b = await pdFetch(`chains/${key}/base.json`);
+  b.map = new Map(b.codes.map((c, i) => [c, i]));
+  b.wset = new Set(b.w || []);
+  b.search = b.names.map(cleanTxt);
+  return (PD.bases[key] = b);
+}
+async function loadStore(key, id){
+  const k = key + "/" + id;
+  if (PD.storeData[k]) return PD.storeData[k];
+  const s = await pdFetch(`chains/${key}/stores/${id}.json`);
+  const bin = atob(s.b), bits = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bits[i] = bin.charCodeAt(i);
+  return (PD.storeData[k] = { bits, d: s.d || {} });
+}
+const hasIdx = (sd, i) => (sd.bits[i >> 3] >> (i & 7)) & 1;
+
+function priceAt(p, store, base, sd){
+  let best = null;
+  for (const l of (p.links || [])){
+    if (l.chain && l.chain !== store.c) continue;
+    const i = base.map.get(l.code);
+    if (i === undefined || !hasIdx(sd, i)) continue;
+    const unitPrice = sd.d[i] ?? base.prices[i];
+    const weighted = base.wset.has(i);
+    const q = state.qty[p.id], u = unitOf(p);
+    let cost, approx = false;
+    if (weighted){ cost = u === "g" ? unitPrice * q / 1000 : unitPrice * q; approx = u !== "g"; }
+    else { cost = u === "g" ? unitPrice : unitPrice * q; approx = u === "g"; }
+    if (!best || cost < best.cost) best = { cost, unitPrice, weighted, approx, name: base.names[i] };
+  }
+  return best;
+}
+
+function citiesFor(chains){
+  const cnt = new Map();
+  for (const s of PD.stores) if (chains.includes(s.c) && s.city) cnt.set(s.city, (cnt.get(s.city) || 0) + 1);
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+}
+
+function renderSettings(box){
+  const cur = state.compare || { chains: [], city: "" };
+  const picked = new Set(cur.chains);
+  const cityIn = el("input",{type:"text",list:"citylist",placeholder:"למשל: תל אביב יפו",value:cur.city || "","aria-label":"עיר"});
+  const dl = el("datalist",{id:"citylist"});
+  const fillCities = () => dl.replaceChildren(...citiesFor([...picked]).map(c => el("option",{value:c})));
+  fillCities();
+  box.replaceChildren(el("div",{class:"cmpset"},
+    el("h3",{},"באילו רשתות אתם קונים?"),
+    el("div",{class:"chips"}, PD.index.chains.map(c => {
+      const b = el("button",{class:"chip"+(picked.has(c.key)?" on":""),"aria-pressed":String(picked.has(c.key)),onclick:()=>{
+        picked.has(c.key) ? picked.delete(c.key) : picked.add(c.key);
+        b.classList.toggle("on"); b.setAttribute("aria-pressed", String(picked.has(c.key))); fillCities();
+      }}, c.name);
+      return b;
+    })),
+    el("h3",{},"באיזו עיר?"),
+    cityIn, dl,
+    el("div",{class:"acts"},
+      el("button",{class:"btn solid",onclick:()=>{
+        const city = cityIn.value.trim();
+        if (!picked.size){ toast("צריך לבחור לפחות רשת אחת"); return; }
+        if (!city){ toast("צריך לבחור עיר"); cityIn.focus(); return; }
+        if (!PD.stores.some(s => picked.has(s.c) && s.city === city)){ toast("לא מצאתי סניפים של הרשתות האלה בעיר הזו. בחרי עיר מהרשימה."); return; }
+        state.compare = { chains: [...picked], city }; PD.editSettings = false; persist(); render();
+      }},"שמירה"),
+      state.compare ? el("button",{class:"ghost",onclick:()=>{ PD.editSettings = false; render(); }},"ביטול") : null)
+  ));
+}
+
+function openLinkPanel(p){
+  const chains = state.compare.chains.filter(k => PD.bases[k]);
+  const panel = el("div",{class:"linkpanel",role:"dialog","aria-modal":"true","aria-label":`קישור ${p.name}`});
+  const qIn = el("input",{type:"search",class:"search",value:p.name,"aria-label":"חיפוש מוצר במאגר",enterkeyhint:"search"});
+  const results = el("div",{class:"lres"});
+  const linked = () => p.links || (p.links = []);
+  const keyOf = l => (l.chain || "") + "|" + l.code;
+  const draw = () => {
+    const words = cleanTxt(qIn.value).split(" ").filter(Boolean);
+    const found = new Map();
+    for (const k of chains){
+      const b = PD.bases[k];
+      for (let i = 0; i < b.codes.length && found.size < 400; i++){
+        const s = b.search[i];
+        if (!words.length || !words.every(w => s.includes(w))) continue;
+        const short = isShortCode(b.codes[i]);
+        const key = (short ? k : "") + "|" + b.codes[i];
+        const f = found.get(key);
+        if (f){ f.chains.add(k); f.price = Math.min(f.price, b.prices[i]); }
+        else found.set(key, { code: b.codes[i], chain: short ? k : null, name: b.names[i], unit: b.units[i], chains: new Set([k]), price: b.prices[i], w: b.wset.has(i) });
+      }
+    }
+    const L = new Set(linked().map(keyOf));
+    const list = [...found.values()]
+      .sort((a, b) => (L.has(keyOf(b)) - L.has(keyOf(a))) || (b.chains.size - a.chains.size) || a.name.length - b.name.length)
+      .slice(0, 50);
+    results.replaceChildren(...(
+      list.length ? list.map(r => {
+        const on = L.has(keyOf(r));
+        return el("button",{class:"lrow"+(on?" on":""),onclick:()=>{
+          if (on) p.links = linked().filter(l => keyOf(l) !== keyOf(r));
+          else linked().push({ code: r.code, name: r.name, ...(r.chain ? { chain: r.chain } : {}) });
+          persist(); draw();
+        }},
+          el("span",{class:"lcheck","aria-hidden":"true"}, on ? "✓" : "+"),
+          el("span",{class:"ltext"},
+            el("b",{}, r.name || r.code),
+            el("small",{}, [r.unit, [...r.chains].map(chainName).join(" · "), (r.w ? "לק״ג " : "") + "מ־" + shek(r.price)].filter(Boolean).join(" | "))));
+      }) : [el("p",{class:"hint",style:"padding:12px 0"},"לא נמצאו מוצרים. נסי מילה אחרת או קצרה יותר.")]
+    ));
+  };
+  let t; qIn.addEventListener("input", () => { clearTimeout(t); t = setTimeout(draw, 150); });
+  const close = () => { panel.remove(); document.body.style.overflow = ""; render(); };
+  panel.append(el("div",{class:"lhead"},
+      el("b",{}, `קישור: ${p.name}`),
+      el("button",{class:"btn solid",onclick:close},"סיום")),
+    el("p",{class:"hint"},"בחרי מוצר אחד או כמה (למשל כמה מותגים של אותו מוצר). בכל סניף יחושב הזול מביניהם."),
+    qIn, results);
+  document.body.append(panel); document.body.style.overflow = "hidden";
+  draw(); qIn.focus();
+}
+
+async function ensureCompareData(){
+  if (PD.busy) return;
+  PD.busy = true; PD.error = null;
+  try {
+    await loadMeta();
+    if (state.compare){
+      await Promise.all(state.compare.chains.filter(k => PD.index.chains.some(c => c.key === k)).map(loadBase));
+      const stores = PD.stores.filter(s => state.compare.chains.includes(s.c) && s.city === state.compare.city);
+      await Promise.all(stores.map(s => loadStore(s.c, s.id).catch(() => null)));
+    }
+  } catch(e){ PD.error = e; }
+  PD.busy = false;
+  if (view === "compare") render();
+}
+
+function renderCompare(){
+  const back = el("button",{class:"ghost",onclick:()=>{ view="list"; history.replaceState(null,"","#list"); render(); }},"→ חזרה לרשימה");
+  const box = el("div");
+  main.replaceChildren(back, box);
+  if (PD.error){
+    box.replaceChildren(el("div",{class:"empty"}, el("b",{},"נתוני המחירים לא זמינים כרגע"),
+      "ייתכן שהעדכון היומי עוד לא רץ. אפשר להריץ אותו ב־GitHub: Actions ← Update supermarket prices ← Run workflow.",
+      el("p",{style:"direction:ltr;font-size:12px"}, String(PD.error.message || PD.error)),
+      el("button",{class:"btn solid",onclick:()=>{ PD.error=null; ensureCompareData(); render(); }},"לנסות שוב")));
+    return;
+  }
+  if (!PD.index || !PD.stores){ box.replaceChildren(el("p",{class:"hint",style:"margin-top:16px"},"טוען נתוני מחירים…")); ensureCompareData(); return; }
+  if (!state.compare || PD.editSettings){ renderSettings(box); return; }
+
+  const cfg = state.compare;
+  const stores = PD.stores.filter(s => cfg.chains.includes(s.c) && s.city === cfg.city);
+  const ready = cfg.chains.every(k => PD.bases[k] || !PD.index.chains.some(c => c.key === k)) && stores.every(s => PD.storeData[s.c + "/" + s.id]);
+  if (!ready){ box.replaceChildren(el("p",{class:"hint",style:"margin-top:16px"},"טוען מחירים מהסניפים…")); ensureCompareData(); return; }
+
+  const sel = selected();
+  const unlinked = sel.filter(p => !(p.links && p.links.length));
+  const linkedSel = sel.filter(p => p.links && p.links.length);
+
+  const results = stores.map(s => {
+    const base = PD.bases[s.c], sd = PD.storeData[s.c + "/" + s.id];
+    let total = 0, approx = false; const lines = [], missing = [];
+    for (const p of linkedSel){
+      const r = base && sd ? priceAt(p, s, base, sd) : null;
+      if (r){ total += r.cost; approx = approx || r.approx; lines.push({ p, r }); } else missing.push(p);
+    }
+    return { s, total, approx, lines, missing };
+  }).sort((a, b) => (a.missing.length - b.missing.length) || (a.total - b.total));
+
+  const updated = PD.index.updated ? new Date(PD.index.updated).toLocaleDateString("he-IL") : "";
+  box.replaceChildren(el("div",{},
+    el("div",{class:"cmpsum"},
+      el("span",{}, `${cfg.chains.map(chainName).join(", ")} · ${cfg.city}`),
+      el("button",{class:"ghost",onclick:()=>{ PD.editSettings = true; render(); }},"שינוי")),
+    !sel.length ? el("div",{class:"empty"}, el("b",{},"הרשימה ריקה"),"בחרי מוצרים כדי להשוות מחירים.") : null,
+    unlinked.length ? el("div",{class:"askbox"},
+      el("p",{class:"q2"}, `${unlinked.length} מוצרים עוד לא מקושרים למוצר בסופר`),
+      el("p",{},"קישור עושים פעם אחת, והוא נשמר לפעמים הבאות. מוצר לא מקושר לא נכנס לחישוב."),
+      unlinked.map(p => el("div",{class:"row"}, el("span",{class:"ltxt",style:"flex:1"},p.name), el("button",{class:"btn",onclick:()=>openLinkPanel(p)},"קישור")))) : null,
+    linkedSel.length ? [
+      el("h3",{class:"cmph"}, `הסניפים הזולים ב${cfg.city}`),
+      results.length ? results.slice(0, 10).map((x, i) => {
+        const det = el("details",{class:"store"+(i===0 && !x.missing.length ? " best" : "")},
+          el("summary",{},
+            el("span",{class:"sname"}, el("b",{}, `${chainName(x.s.c)} – ${x.s.n}`), el("small",{}, x.s.addr || "")),
+            el("span",{class:"stot"}, el("b",{}, (x.approx ? "~" : "") + shek(x.total)),
+              el("small",{}, x.missing.length ? `חסרים ${x.missing.length}` : "הכול נמצא"))),
+          x.lines.map(({p, r}) => el("div",{class:"pline"}, el("span",{}, p.name, el("small",{}, " " + r.name)), el("span",{}, (r.approx ? "~" : "") + shek(r.cost)))),
+          x.missing.length ? el("p",{class:"hint"}, "לא נמצאו בסניף: " + x.missing.map(p => p.name).join(", ")) : null);
+        return det;
+      }) : el("p",{class:"hint"},"אין סניפים של הרשתות שבחרת בעיר הזו."),
+      el("h3",{class:"cmph"},"מוצרים מקושרים"),
+      linkedSel.map(p => el("div",{class:"row"},
+        el("span",{class:"ltxt",style:"flex:1"}, p.name, el("small",{class:"lk"}, " " + p.links.map(l => l.name).join(" / "))),
+        el("button",{class:"ghost",onclick:()=>openLinkPanel(p)},"שינוי")))
+    ] : null,
+    el("p",{class:"hint",style:"margin-top:16px"}, `מחירי מדף ללא מבצעים${updated ? " · עודכן " + updated : ""}. ~ = מחיר משוער (מוצר במשקל לעומת יחידות).`)
+  ));
+}
+
 function render(){
-  for (const v of ["pick","list","family"]) document.getElementById("tab-"+v).setAttribute("aria-selected", view===v);
+  for (const v of ["pick","list","family"]) document.getElementById("tab-"+v).setAttribute("aria-selected", view===v || (v==="list" && view==="compare"));
   const n = selected().length, b = document.getElementById("badge");
   b.hidden = !n; b.textContent = n;
   document.getElementById("sub").textContent = {
     pick: "בוחרים מוצרים וכמויות, ובסופר מסמנים מה כבר בעגלה.",
     list: "לחיצה על מוצר מסמנת שהוא כבר בעגלה.",
-    family: "כל מי שבמשפחה רואה ועורך את אותה רשימה."
+    family: "כל מי שבמשפחה רואה ועורך את אותה רשימה.",
+    compare: "כמה תעלה הרשימה בכל סניף בעיר שלך."
   }[view];
   if (view==="pick") renderPick();
   else if (view==="list") renderList();
+  else if (view==="compare") renderCompare();
   else if (window.renderFamilyView) window.renderFamilyView(main);
   else main.replaceChildren(el("p",{class:"hint",style:"margin-top:20px"},"טוען…"));
 }
