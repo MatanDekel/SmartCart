@@ -334,7 +334,7 @@ function renderPick(){
     el("p",{class:"hint"},
       editMode ? "מצב עריכה: אפשר למחוק מוצרים וקטגוריות ולהוסיף קטגוריה חדשה." : "מוצר חדש נשמר גם לשבוע הבא.",
       el("button",{class:"ghost",onclick:()=>{editMode=!editMode;render();}}, editMode?"סיום עריכה":"עריכה ומחיקה")),
-    catBox,
+    ...(catBox ? [catBox] : []),
     ...state.cats.map(c => {
       const items = state.catalog.filter(p=>p.cat===c);
       const chosen = items.filter(p=>state.qty[p.id]>0).length;
