@@ -1,0 +1,51 @@
+name: Update supermarket prices
+
+on:
+  schedule:
+    - cron: "30 3 * * *"   # every day ~06:30 Israel time
+  workflow_dispatch:
+    inputs:
+      chains:
+        description: "Comma-separated scraper keys (empty = all in build_prices.py)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prices
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install scraper
+        run: pip install "il-supermarket-scraper==1.0.19"
+
+      - name: Download and build price data
+        env:
+          CHAINS: ${{ github.event.inputs.chains }}
+          OUT_DIR: out
+        run: |
+          if [ -z "$CHAINS" ]; then unset CHAINS; fi
+          python pipeline/build_prices.py
+
+      - name: Publish to price-data branch
+        run: |
+          cd out
+          git init -q
+          git checkout -q -b price-data
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Prices $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" price-data
