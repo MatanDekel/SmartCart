@@ -120,10 +120,11 @@ nav.tabs .badge{display:inline-block;min-width:22px;padding:0 6px;margin-inline-
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-const DEFAULT_CATS = ["פירות וירקות","חלב וביצים","לחם ומאפים","בשר, עוף ודגים","יבשים ושימורים","קפואים","שתייה","חטיפים ומתוקים","תבלינים ורטבים","ניקיון ובית","טיפוח והיגיינה"];
+const DEFAULT_CATS = ["פירות וירקות","חלב וביצים","מקרר","לחם ומאפים","בשר, עוף ודגים","יבשים ושימורים","קפואים","שתייה","חטיפים ומתוקים","תבלינים ורטבים","ניקיון ובית","טיפוח והיגיינה"];
 const DEFAULT_PRODUCTS = {
   "פירות וירקות":["עגבניות","מלפפונים","בצל","שום","תפוחי אדמה","גזר","פלפל","חסה","לימון","בננות","תפוחים","אבוקדו"],
   "חלב וביצים":["חלב","ביצים","גבינה צהובה","קוטג'","גבינה לבנה","יוגורט","חמאה","שמנת"],
+  "מקרר":["חומוס","סלט חצילים","נקניק","פסטרמה","זיתים","חמוצים"],
   "לחם ומאפים":["לחם","פיתות","לחמניות"],
   "בשר, עוף ודגים":["חזה עוף","שניצל","בשר טחון","סלמון"],
   "יבשים ושימורים":["אורז","פסטה","קמח","סוכר","שמן","טונה","תירס","קפה","תה","דגני בוקר"],
@@ -142,12 +143,23 @@ function freshState(){
   for (const c of DEFAULT_CATS) for (const n of (DEFAULT_PRODUCTS[c]||[])) catalog.push({id:uid(),name:n,cat:c});
   return {v:1, cats:[...DEFAULT_CATS], catalog, qty:{}, done:{}};
 }
+function migrate(s){
+  let changed = false;
+  if (!s.cats.includes("מקרר")){
+    const i = s.cats.indexOf("חלב וביצים");
+    s.cats.splice(i >= 0 ? i + 1 : s.cats.length, 0, "מקרר");
+    for (const n of DEFAULT_PRODUCTS["מקרר"]) s.catalog.push({id:uid(), name:n, cat:"מקרר"});
+    changed = true;
+  }
+  return changed;
+}
 function valid(s){return s && Array.isArray(s.cats) && Array.isArray(s.catalog) && typeof s.qty==="object"}
 
 let state;
 try { const raw = localStorage.getItem(LS_KEY); state = raw ? JSON.parse(raw) : null; } catch(e){ state = null; }
 if (!valid(state)) state = freshState();
 state.done = state.done || {};
+migrate(state);
 
 let view = location.hash === "#list" ? "list" : "pick";
 let editMode = false;
@@ -186,7 +198,7 @@ async function flush(){
       const d = snap.exists ? snap.data() : null;
       if (first){
         first = false; clearTimeout(timer);
-        if (valid(d)){ state = JSON.parse(JSON.stringify(d)); state.done = state.done||{}; lastSynced = JSON.stringify(state); try{localStorage.setItem(LS_KEY, lastSynced);}catch(e){} render(); }
+        if (valid(d)){ state = JSON.parse(JSON.stringify(d)); state.done = state.done||{}; lastSynced = JSON.stringify(state); try{localStorage.setItem(LS_KEY, lastSynced);}catch(e){} if (migrate(state)) persist(); render(); }
         else { flush(); }
         setSync("מסונכרן");
         return;
