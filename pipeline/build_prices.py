@@ -66,6 +66,7 @@ def norm_city(s):
 
 
 CITY_CODES = {}
+NOT_CITY_WORDS = {"ספיר", "שופרסל", "יוחננוף", "ויקטורי"}  # chain names that are also localities
 CITY_NAMES = []
 
 
@@ -95,9 +96,9 @@ def resolve_city(raw, store_name):
     else:
         city = norm_city(raw)
     if not city and store_name:
-        n = " " + norm_city(store_name) + " "
+        n = " " + re.sub(r"[^\w\u0590-\u05FF]+", " ", norm_city(store_name)) + " "
         for c in CITY_NAMES:
-            if f" {c} " in n:
+            if c not in NOT_CITY_WORDS and f" {c} " in n:
                 return c
     return city
 
