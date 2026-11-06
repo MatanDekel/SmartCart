@@ -426,13 +426,16 @@ function renderList(){
     el("div",{id:"finishBox"}, finishButton())
   );
 }
-function startNewList(carry){
+function startNewList(mode){
   const left = {};
-  if (carry) for (const p of selected()) if (!state.done[p.id]) left[p.id] = state.qty[p.id];
+  for (const p of selected())
+    if (mode === "all" || (mode === "notBought" && !state.done[p.id])) left[p.id] = state.qty[p.id];
   const n = Object.keys(left).length;
   state.qty = left; state.done = {};
   persist(); view="pick"; history.replaceState(null,"","#pick"); render(); scrollTo(0,0);
-  toast(n ? `רשימה חדשה – ${n} מוצרים שלא נקנו עברו אליה` : "רשימה חדשה – אפשר להתחיל לבחור");
+  toast(!n ? "רשימה חדשה – אפשר להתחיל לבחור"
+    : mode === "all" ? `רשימה חדשה – כל ${n} המוצרים נשארו בה`
+    : `רשימה חדשה – ${n} מוצרים שלא נקנו עברו אליה`);
 }
 function finishButton(){
   return el("button",{class:"finish",onclick:()=>{
@@ -445,14 +448,16 @@ function finishButton(){
         el("p",{}, `${notBought.length === 1 ? "מוצר אחד לא סומן" : notBought.length + " מוצרים לא סומנו"} כנקנה: ${names}.`),
         el("p",{class:"q2"},"להעביר אותם לרשימה הבאה?"),
         el("div",{class:"acts"},
-          el("button",{class:"solid",onclick:()=>startNewList(true)},"כן, להעביר"),
-          el("button",{onclick:()=>startNewList(false)},"לא, להתחיל ריקה"),
+          el("button",{class:"solid",onclick:()=>startNewList("notBought")},"כן, להעביר"),
+          el("button",{onclick:()=>startNewList("all")},"להשאיר את כל הרשימה"),
+          el("button",{onclick:()=>startNewList("none")},"לא, להתחיל ריקה"),
           cancel)));
     } else {
       box.replaceChildren(el("div",{class:"askbox"},
-        el("p",{class:"q2"},"הכול נקנה. להתחיל רשימה חדשה?"),
+        el("p",{class:"q2"},"הכול נקנה. איך להתחיל את הרשימה הבאה?"),
         el("div",{class:"acts"},
-          el("button",{class:"solid",onclick:()=>startNewList(false)},"כן, רשימה חדשה"),
+          el("button",{class:"solid",onclick:()=>startNewList("none")},"רשימה ריקה"),
+          el("button",{onclick:()=>startNewList("all")},"עם אותם מוצרים"),
           cancel)));
     }
     box.scrollIntoView({block:"nearest"});
