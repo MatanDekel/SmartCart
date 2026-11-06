@@ -212,7 +212,7 @@ async function flush(){
 (async () => {
   try{
     const ctx = await window.smartcartAuth;
-    if (!ctx){ setSync("נשמר במכשיר הזה"); return; }
+    if (!ctx){ if (!window.__smartcartError) setSync("נשמר במכשיר הזה"); return; }
     dbRef = ctx.ref;
     let first = true;
     const timer = setTimeout(()=>{ if(first) setSync("נשמר במכשיר הזה"); }, 10000);
@@ -518,6 +518,18 @@ const inviteLink = () => FAMILY ? `${location.origin}/?join=${FID}.${FAMILY.invi
 const rerenderFamily = () => { if (view === "family") render(); };
 
 window.renderFamilyView = (main) => {
+  if (window.__smartcartError){
+    const e = window.__smartcartError;
+    const perm = e && e.code === "permission-denied";
+    main.replaceChildren(el("div",{class:"fam"},
+      el("h3",{},"לא הצלחתי להתחבר לרשימה המשפחתית"),
+      el("p",{}, perm
+        ? "Firebase חסם את הגישה. כנראה ה־Rules ב־Firestore עוד לא עודכנו לגרסה החדשה (עם המשפחות), או שלא לחצו Publish."
+        : "קרתה שגיאה בחיבור ל־Firebase."),
+      el("p",{style:"direction:ltr;text-align:right;font-size:13px"}, `${e && e.code || ""} ${e && e.message || e}`),
+      el("button",{class:"btn solid",onclick:()=>location.reload()},"לנסות שוב")));
+    return;
+  }
   if (!FAMILY){ main.replaceChildren(el("p",{class:"hint",style:"margin-top:20px"},"טוען…")); return; }
   const isOwner = FAMILY.ownerUid === ME.uid;
   const link = inviteLink();
@@ -614,7 +626,14 @@ else {
 
     let res;
     try { res = await resolveFamily(user); }
-    catch(e){ console.error(e); setSync("אין חיבור לשמירה. בדקי את ה־Rules ב־Firebase."); window.__smartcartResolve(null); return; }
+    catch(e){
+      console.error(e);
+      window.__smartcartError = e;
+      setSync("לא מחובר לרשימה המשפחתית");
+      window.__smartcartResolve(null);
+      rerenderFamily();
+      return;
+    }
     FID = res.fid;
     if (res.joined) toast("הצטרפת לרשימה המשפחתית");
     showOffer(res.offer);
