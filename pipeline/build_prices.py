@@ -65,6 +65,43 @@ def norm_city(s):
     return "" if (not s or s.isdigit() or s in ("0", "unknown")) else s
 
 
+CITY_CODES = {}
+CITY_NAMES = []
+
+
+def load_city_codes():
+    """CBS locality codes -> names (many chains publish the city as a numeric code)."""
+    import urllib.request
+    url = ("https://data.gov.il/api/3/action/datastore_search"
+           "?resource_id=5c78e9fa-c2e2-4771-93ff-7f400a12f7ba&limit=5000")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (SmartCart price pipeline)"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.load(r)
+        for rec in data["result"]["records"]:
+            code, name = str(rec.get("סמל_ישוב", "")).strip(), str(rec.get("שם_ישוב", "")).strip()
+            if code.isdigit() and int(code) > 0 and name:
+                CITY_CODES[int(code)] = norm_city(name)
+    except Exception as e:  # noqa
+        print("city codes download failed:", e)
+    names = {n for n in CITY_CODES.values() if n and len(n) >= 3}
+    CITY_NAMES.extend(sorted(names, key=len, reverse=True))
+
+
+def resolve_city(raw, store_name):
+    raw = (raw or "").strip()
+    if raw.isdigit():
+        city = CITY_CODES.get(int(raw), "")
+    else:
+        city = norm_city(raw)
+    if not city and store_name:
+        n = " " + norm_city(store_name) + " "
+        for c in CITY_NAMES:
+            if f" {c} " in n:
+                return c
+    return city
+
+
 def parse_stores(path):
     stores = {}
     try:
@@ -78,7 +115,7 @@ def parse_stores(path):
             if sid:
                 stores[sid] = {
                     "n": m.get("storename", "").strip(),
-                    "city": norm_city(m.get("city", "")),
+                    "raw_city": m.get("city", "").strip(),
                     "addr": m.get("address", "").strip(),
                 }
     return stores
@@ -186,10 +223,12 @@ def build_chain(key, folder, report):
         with open(os.path.join(out_dir, "stores", f"{sid}.json"), "w", encoding="utf-8") as fh:
             json.dump({"b": base64.b64encode(bytes(bits)).decode(), "d": diffs}, fh, separators=(",", ":"))
         m = meta.get(sid, {})
-        stores_out.append({"c": key, "id": sid, "n": m.get("n") or f"סניף {sid}",
-                           "city": m.get("city", ""), "addr": m.get("addr", "")})
+        name = m.get("n") or f"סניף {sid}"
+        stores_out.append({"c": key, "id": sid, "n": name,
+                           "city": resolve_city(m.get("raw_city", ""), m.get("n", "")), "addr": m.get("addr", "")})
     report.update(stores=len(stores_out), items=len(codes),
-                  stores_with_city=sum(1 for s in stores_out if s["city"]))
+                  stores_with_city=sum(1 for s in stores_out if s["city"]),
+                  raw_city_samples=sorted({v.get("raw_city", "") for v in meta.values()})[:8])
     return stores_out
 
 
@@ -209,7 +248,8 @@ def main():
         except Exception:
             traceback.print_exc()
     os.makedirs(OUT, exist_ok=True)
-    all_stores, chains, report = [], [], {}
+    load_city_codes()
+    all_stores, chains, report = [], [], {"_city_codes_loaded": len(CITY_CODES)}
     for key in keys:
         rep = report.setdefault(key, {})
         folder = chain_folder(key) or os.path.join(DUMPS, key)
