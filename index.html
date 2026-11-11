@@ -64,8 +64,8 @@ header p{margin:0;color:var(--muted)}
 .row .name{flex:1;background:none;border:0;text-align:right;padding:8px 0;cursor:pointer;font-size:16px}
 .row.on .name{font-weight:700}
 .step{display:flex;align-items:center;gap:2px}
-.step button{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
-.step .q{min-width:46px;text-align:center;font-weight:700;padding:2px 6px}
+.step button{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.step .q{min-width:42px;text-align:center;font-weight:700;padding:2px 6px}
 .row.on .step .q{background:var(--tag);color:var(--tag-ink);border-radius:6px 14px 14px 6px;position:relative}
 .row.on .step .q::before{content:"";position:absolute;right:5px;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--bg)}
 .row:not(.on) .step .minus{visibility:hidden}
@@ -157,6 +157,12 @@ details.store .hint{padding:6px 12px}
 .lrow small{color:var(--muted);font-size:13px}
 .lcheck{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--green);display:grid;place-items:center;color:var(--green);font-weight:700;flex:0 0 auto}
 .lrow.on .lcheck{background:var(--green);color:var(--bg)}
+.note{display:block;font-size:13px;font-weight:400;color:var(--muted);line-height:1.3}
+.row .name{display:flex;flex-direction:column;align-items:flex-start}
+.notebtn{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:0;background:none;color:var(--muted);font-size:15px;cursor:pointer;display:grid;place-items:center}
+.notebtn.has{color:var(--green)}
+.noterow{display:flex;gap:6px;align-items:center;padding:6px 0 10px;border-bottom:1px solid var(--line)}
+.noterow .noteinput{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--green);border-radius:10px;background:var(--surface);font-size:15px}
 </style>
 <script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
@@ -341,6 +347,21 @@ function deleteCategory(c){
 }
 
 let filterText = "";
+let noteOpen = null;
+function noteEditor(p){
+  const inp = el("input",{type:"text",class:"noteinput",maxlength:"80",placeholder:"הערה, למשל: בלי לקטוז / המותג הירוק","aria-label":`הערה ל${p.name}`});
+  inp.value = p.note || "";
+  const save = () => {
+    const v = inp.value.trim();
+    if (v) p.note = v; else delete p.note;
+    noteOpen = null; persist(); render();
+  };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") save(); if (e.key === "Escape"){ noteOpen = null; render(); } });
+  setTimeout(() => inp.focus(), 0);
+  return el("div",{class:"noterow"}, inp,
+    el("button",{class:"btn solid",onclick:save},"שמירה"),
+    p.note ? el("button",{class:"ghost",onclick:()=>{ delete p.note; noteOpen = null; persist(); render(); }},"מחיקה") : null);
+}
 const norm = s => (s || "").trim().toLowerCase();
 function renderPick(){
   const nameIn = el("input",{type:"text",placeholder:"מוצר חדש, למשל: חומוס",maxlength:"40","aria-label":"שם מוצר חדש"});
@@ -391,8 +412,9 @@ function renderPick(){
         el("summary",{}, el("span",{class:"chev","aria-hidden":"true"},"‹"), el("h2",{},c), el("span",{class:"cnt"}, chosen ? `${chosen} נבחרו` : `${items.length} מוצרים`)),
         items.length ? items.map(p => {
           const q = state.qty[p.id]||0, u = unitOf(p);
-          return el("div",{class:"row"+(q?" on":"")},
-            el("button",{class:"name",onclick:()=>bump(p,1)},p.name),
+          return [el("div",{class:"row"+(q?" on":"")},
+            el("button",{class:"name",onclick:()=>bump(p,1)}, p.name, p.note ? el("small",{class:"note"}, p.note) : null),
+            !editMode ? el("button",{class:"notebtn"+(p.note?" has":""),"aria-label":`הערה ל${p.name}`,title:"הערה",onclick:()=>{ noteOpen = noteOpen === p.id ? null : p.id; render(); }},"✎") : null,
             editMode ? el("button",{class:"del",onclick:()=>{
               const idx = state.catalog.findIndex(x=>x.id===p.id);
               if (idx<0) return;
@@ -410,7 +432,7 @@ function renderPick(){
               el("button",{class:"minus","aria-label":`פחות ${p.name}`,onclick:()=>bump(p,-1)},"−"),
               el("span",{class:"q","aria-live":"polite"}, String(q)),
               el("button",{"aria-label":`עוד ${p.name}`,onclick:()=>bump(p,1)},"+"))]
-          );
+          ), noteOpen === p.id && !editMode ? noteEditor(p) : null];
         }) : el("p",{class:"hint",style:"padding-top:10px"},"אין עדיין מוצרים בקטגוריה הזו."),
         editMode ? el("div",{class:"catdel"}, el("button",{class:"del",onclick:()=>deleteCategory(c)},
           items.length ? `מחיקת הקטגוריה ו־${items.length} המוצרים שבה` : "מחיקת הקטגוריה")) : null
@@ -449,7 +471,7 @@ function renderList(){
           items.map(p => el("div",{class:"row"+(state.done[p.id]?" done":""),role:"checkbox","aria-checked":String(!!state.done[p.id]),tabindex:"0",
             onclick:()=>toggleDone(p.id), onkeydown:e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleDone(p.id);} }},
             el("span",{class:"check","aria-hidden":"true"}),
-            el("span",{class:"ltxt"},p.name),
+            el("span",{class:"ltxt"},p.name, p.note ? el("small",{class:"note"}, p.note) : null),
             el("span",{class:"lq"},fmtQty(p,state.qty[p.id]))))
         );
       })
