@@ -70,6 +70,7 @@ header p{margin:0;color:var(--muted)}
 .row.on .step .q::before{content:"";position:absolute;right:5px;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--bg)}
 .row:not(.on) .step .minus{visibility:hidden}
 .unit{flex:0 0 auto;padding:5px 4px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-size:14px;max-width:76px}
+.catmove{flex:0 1 auto;max-width:42%;padding:5px 4px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-size:14px}
 .catdel{padding:8px 0 2px}
 .del{border:1.5px solid var(--danger);background:none;color:var(--danger);font-size:14px;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:8px}
 
@@ -348,6 +349,13 @@ function deleteCategory(c){
 
 let filterText = "";
 let noteOpen = null;
+function moveProduct(p, cat){
+  if (!state.cats.includes(cat) || cat === p.cat) return;
+  if (state.catalog.some(x => x !== p && x.cat === cat && x.name === p.name)){ toast(`כבר יש ${p.name} בקטגוריה ${cat}`); render(); return; }
+  p.unit = unitOf(p);
+  p.cat = cat; openCats.add(cat);
+  persist(); render(); toast(`${p.name} הועבר ל${cat}`);
+}
 function noteEditor(p){
   const inp = el("input",{type:"text",class:"noteinput",maxlength:"80",placeholder:"הערה, למשל: בלי לקטוז / המותג הירוק","aria-label":`הערה ל${p.name}`});
   inp.value = p.note || "";
@@ -415,7 +423,9 @@ function renderPick(){
           return [el("div",{class:"row"+(q?" on":"")},
             el("button",{class:"name",onclick:()=>bump(p,1)}, p.name, p.note ? el("small",{class:"note"}, p.note) : null),
             !editMode ? el("button",{class:"notebtn"+(p.note?" has":""),"aria-label":`הערה ל${p.name}`,title:"הערה",onclick:()=>{ noteOpen = noteOpen === p.id ? null : p.id; render(); }},"✎") : null,
-            editMode ? el("button",{class:"del",onclick:()=>{
+            editMode ? [el("select",{class:"catmove","aria-label":`קטגוריה של ${p.name}`,onchange:e=>moveProduct(p, e.target.value)},
+              state.cats.map(cc=>el("option",{value:cc,selected:cc===p.cat},cc))),
+            el("button",{class:"del",onclick:()=>{
               const idx = state.catalog.findIndex(x=>x.id===p.id);
               if (idx<0) return;
               const bq = state.qty[p.id], bd = state.done[p.id];
@@ -425,7 +435,7 @@ function renderPick(){
                 if (bq) state.qty[p.id]=bq; if (bd) state.done[p.id]=true;
                 persist(); render();
               });
-            }},"מחיקה") : [
+            }},"מחיקה")] : [
             el("select",{class:"unit","aria-label":`יחידת מידה ל${p.name}`,onchange:e=>setUnit(p,e.target.value)},
               Object.entries(UNITS).map(([k,v])=>el("option",{value:k,selected:k===u},v.label))),
             el("div",{class:"step"},
