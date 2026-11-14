@@ -164,6 +164,17 @@ details.store .hint{padding:6px 12px}
 .notebtn.has{color:var(--green)}
 .noterow{display:flex;gap:6px;align-items:center;padding:6px 0 10px;border-bottom:1px solid var(--line)}
 .noterow .noteinput{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--green);border-radius:10px;background:var(--surface);font-size:15px}
+.row.edit{gap:6px;min-height:46px}
+.handle{flex:0 0 auto;width:26px;height:34px;display:grid;place-items:center;color:var(--muted);font-size:20px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.nameedit{flex:1 1 110px;min-width:0;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-size:15px}
+.nameedit:focus{border-color:var(--green);outline:none}
+.row.edit .catmove{flex:0 1 112px;max-width:34%}
+.iconbtn{flex:0 0 auto;width:32px;height:32px;padding:0;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;display:grid;place-items:center;font-size:14px;color:var(--ink)}
+.iconbtn.del{border-color:var(--danger);color:var(--danger)}
+.iconbtn:disabled{opacity:.3;cursor:default}
+.catbar{display:flex;gap:6px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.catbar .nameedit{font-weight:700}
+.row.dragging{background:var(--green-soft);box-shadow:0 6px 18px rgba(0,0,0,.2);position:relative;z-index:3;border-radius:8px}
 </style>
 <script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
@@ -349,6 +360,84 @@ function deleteCategory(c){
 
 let filterText = "";
 let noteOpen = null;
+let lastAddCat = null;
+function deleteProduct(p){
+  const idx = state.catalog.findIndex(x=>x.id===p.id);
+  if (idx<0) return;
+  const bq = state.qty[p.id], bd = state.done[p.id];
+  state.catalog.splice(idx,1); delete state.qty[p.id]; delete state.done[p.id]; persist(); render();
+  toast(`${p.name} נמחק`, "ביטול", ()=>{
+    state.catalog.splice(Math.min(idx,state.catalog.length),0,p);
+    if (bq) state.qty[p.id]=bq; if (bd) state.done[p.id]=true;
+    persist(); render();
+  });
+}
+function renameProduct(p, v){
+  v = (v||"").trim();
+  if (!v || v === p.name){ render(); return; }
+  if (state.catalog.some(x => x !== p && x.cat === p.cat && x.name === v)){ toast(`כבר יש ${v} בקטגוריה הזו`); render(); return; }
+  p.name = v; persist(); render();
+}
+function renameCategory(old, v){
+  v = (v||"").trim();
+  if (!v || v === old){ render(); return; }
+  if (state.cats.includes(v)){ toast("כבר יש קטגוריה בשם הזה"); render(); return; }
+  for (const p of state.catalog) if (p.cat === old){ p.unit = unitOf(p); p.cat = v; }
+  state.cats[state.cats.indexOf(old)] = v;
+  if (openCats.delete(old)) openCats.add(v);
+  if (lastAddCat === old) lastAddCat = v;
+  persist(); render(); toast(`השם שונה ל${v}`);
+}
+function moveCategory(c, dir){
+  const i = state.cats.indexOf(c), j = i + dir;
+  if (i < 0 || j < 0 || j >= state.cats.length) return;
+  [state.cats[i], state.cats[j]] = [state.cats[j], state.cats[i]];
+  persist(); render();
+}
+function reorderProducts(ids){
+  const set = new Set(ids);
+  const pos = [];
+  state.catalog.forEach((p,i) => { if (set.has(p.id)) pos.push(i); });
+  const byId = new Map(state.catalog.map(p => [p.id, p]));
+  const items = ids.map(id => byId.get(id)).filter(Boolean);
+  if (items.length !== pos.length) return;
+  pos.forEach((at, k) => { state.catalog[at] = items[k]; });
+  persist(); render();
+}
+function startDrag(e){
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  const handle = e.currentTarget, row = handle.closest(".row"), box = row.parentElement;
+  const rowsOf = () => [...box.querySelectorAll(":scope > .row[data-id]")];
+  const before = rowsOf().map(r => r.dataset.id).join();
+  try { handle.setPointerCapture(e.pointerId); } catch(_){}
+  row.classList.add("dragging");
+  let scrollTimer = null, lastY = e.clientY;
+  const place = () => {
+    const others = rowsOf().filter(r => r !== row);
+    const target = others.find(r => { const b = r.getBoundingClientRect(); return lastY < b.top + b.height/2; });
+    if (target){ if (row.nextElementSibling !== target) box.insertBefore(row, target); }
+    else if (others.length){ const last = others[others.length-1]; if (last.nextElementSibling !== row) last.after(row); }
+  };
+  const move = ev => {
+    lastY = ev.clientY; place();
+    clearInterval(scrollTimer); scrollTimer = null;
+    const edge = lastY < 70 ? -8 : (lastY > innerHeight - 110 ? 8 : 0);
+    if (edge) scrollTimer = setInterval(() => { scrollBy(0, edge); place(); }, 16);
+  };
+  const end = () => {
+    clearInterval(scrollTimer);
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", end);
+    handle.removeEventListener("pointercancel", end);
+    row.classList.remove("dragging");
+    const ids = rowsOf().map(r => r.dataset.id);
+    if (ids.join() !== before) reorderProducts(ids);
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
 function moveProduct(p, cat){
   if (!state.cats.includes(cat) || cat === p.cat) return;
   if (state.catalog.some(x => x !== p && x.cat === cat && x.name === p.name)){ toast(`כבר יש ${p.name} בקטגוריה ${cat}`); render(); return; }
@@ -373,12 +462,14 @@ function noteEditor(p){
 const norm = s => (s || "").trim().toLowerCase();
 function renderPick(){
   const nameIn = el("input",{type:"text",placeholder:"מוצר חדש, למשל: חומוס",maxlength:"40","aria-label":"שם מוצר חדש"});
-  const catSel = el("select",{"aria-label":"קטגוריה"}, state.cats.map(c=>el("option",{value:c},c)));
+  const catSel = el("select",{"aria-label":"קטגוריה",onchange:e=>{ lastAddCat = e.target.value; }}, state.cats.map(c=>el("option",{value:c},c)));
+  if (lastAddCat && state.cats.includes(lastAddCat)) catSel.value = lastAddCat;
   const add = () => {
     const n = nameIn.value.trim(); if (!n) { nameIn.focus(); return; }
     if (!catSel.value){ toast("צריך קודם להוסיף קטגוריה"); return; }
     const exists = state.catalog.find(p => p.name === n && p.cat === catSel.value);
     if (exists){ bump(exists, 1); toast(`${n} כבר קיים – נוסף לרשימה`); return; }
+    lastAddCat = catSel.value;
     const p = {id:uid(), name:n, cat:catSel.value, unit:defaultUnit(catSel.value)};
     state.catalog.push(p); state.qty[p.id]=UNITS[p.unit].start; openCats.add(p.cat);
     persist(); render(); toast(`${n} נוסף ויישאר גם לשבועות הבאים`);
@@ -405,8 +496,8 @@ function renderPick(){
     searchIn,
     el("div",{class:"addbox"}, nameIn, catSel, el("button",{onclick:add},"הוספה")),
     el("p",{class:"hint"},
-      editMode ? "מצב עריכה: אפשר למחוק מוצרים וקטגוריות ולהוסיף קטגוריה חדשה." : "מוצר חדש נשמר גם לשבוע הבא.",
-      el("button",{class:"ghost",onclick:()=>{editMode=!editMode;render();}}, editMode?"סיום עריכה":"עריכה ומחיקה")),
+      editMode ? "מצב עריכה: גוררים את ⠿ כדי לסדר, משנים שם או קטגוריה, 🗑 מוחק." : "מוצר חדש נשמר גם לשבוע הבא.",
+      el("button",{class:"ghost",onclick:()=>{editMode=!editMode;noteOpen=null;render();}}, editMode?"סיום עריכה":"עריכה וסידור")),
     ...(catBox ? [catBox] : []),
     catsWrap
   );
@@ -420,33 +511,33 @@ function renderPick(){
         el("summary",{}, el("span",{class:"chev","aria-hidden":"true"},"‹"), el("h2",{},c), el("span",{class:"cnt"}, chosen ? `${chosen} נבחרו` : `${items.length} מוצרים`)),
         items.length ? items.map(p => {
           const q = state.qty[p.id]||0, u = unitOf(p);
+          if (editMode) return el("div",{class:"row edit","data-id":p.id},
+            el("span",{class:"handle",role:"button","aria-label":`גרירה לשינוי המיקום של ${p.name}`,onpointerdown:e=>startDrag(e)},"⠿"),
+            el("input",{type:"text",class:"nameedit",value:p.name,maxlength:"40","aria-label":`שם המוצר ${p.name}`,onchange:e=>renameProduct(p,e.target.value),onkeydown:e=>{ if(e.key==="Enter") e.target.blur(); }}),
+            el("select",{class:"catmove","aria-label":`קטגוריה של ${p.name}`,onchange:e=>moveProduct(p, e.target.value)},
+              state.cats.map(cc=>el("option",{value:cc,selected:cc===p.cat},cc))),
+            el("button",{class:"iconbtn del","aria-label":`מחיקת ${p.name}`,onclick:()=>deleteProduct(p)},"🗑"));
           return [el("div",{class:"row"+(q?" on":"")},
             el("button",{class:"name",onclick:()=>bump(p,1)}, p.name, p.note ? el("small",{class:"note"}, p.note) : null),
-            !editMode ? el("button",{class:"notebtn"+(p.note?" has":""),"aria-label":`הערה ל${p.name}`,title:"הערה",onclick:()=>{ noteOpen = noteOpen === p.id ? null : p.id; render(); }},"✎") : null,
-            editMode ? [el("select",{class:"catmove","aria-label":`קטגוריה של ${p.name}`,onchange:e=>moveProduct(p, e.target.value)},
-              state.cats.map(cc=>el("option",{value:cc,selected:cc===p.cat},cc))),
-            el("button",{class:"del",onclick:()=>{
-              const idx = state.catalog.findIndex(x=>x.id===p.id);
-              if (idx<0) return;
-              const bq = state.qty[p.id], bd = state.done[p.id];
-              state.catalog.splice(idx,1); delete state.qty[p.id]; delete state.done[p.id]; persist(); render();
-              toast(`${p.name} נמחק`, "ביטול", ()=>{
-                state.catalog.splice(Math.min(idx,state.catalog.length),0,p);
-                if (bq) state.qty[p.id]=bq; if (bd) state.done[p.id]=true;
-                persist(); render();
-              });
-            }},"מחיקה")] : [
+            el("button",{class:"notebtn"+(p.note?" has":""),"aria-label":`הערה ל${p.name}`,title:"הערה",onclick:()=>{ noteOpen = noteOpen === p.id ? null : p.id; render(); }},"✎"),
+            [
             el("select",{class:"unit","aria-label":`יחידת מידה ל${p.name}`,onchange:e=>setUnit(p,e.target.value)},
               Object.entries(UNITS).map(([k,v])=>el("option",{value:k,selected:k===u},v.label))),
             el("div",{class:"step"},
               el("button",{class:"minus","aria-label":`פחות ${p.name}`,onclick:()=>bump(p,-1)},"−"),
               el("span",{class:"q","aria-live":"polite"}, String(q)),
               el("button",{"aria-label":`עוד ${p.name}`,onclick:()=>bump(p,1)},"+"))]
-          ), noteOpen === p.id && !editMode ? noteEditor(p) : null];
+          ), noteOpen === p.id ? noteEditor(p) : null];
         }) : el("p",{class:"hint",style:"padding-top:10px"},"אין עדיין מוצרים בקטגוריה הזו."),
-        editMode ? el("div",{class:"catdel"}, el("button",{class:"del",onclick:()=>deleteCategory(c)},
-          items.length ? `מחיקת הקטגוריה ו־${items.length} המוצרים שבה` : "מחיקת הקטגוריה")) : null
       );
+      if (editMode){
+        const ci = state.cats.indexOf(c);
+        d.querySelector("summary").after(el("div",{class:"catbar"},
+          el("input",{type:"text",class:"nameedit",value:c,maxlength:"30","aria-label":`שם הקטגוריה ${c}`,onchange:e=>renameCategory(c,e.target.value),onkeydown:e=>{ if(e.key==="Enter") e.target.blur(); }}),
+          el("button",{class:"iconbtn","aria-label":"הזזת הקטגוריה למעלה",disabled:ci===0,onclick:()=>moveCategory(c,-1)},"▲"),
+          el("button",{class:"iconbtn","aria-label":"הזזת הקטגוריה למטה",disabled:ci===state.cats.length-1,onclick:()=>moveCategory(c,1)},"▼"),
+          el("button",{class:"iconbtn del","aria-label":`מחיקת הקטגוריה ${c}`,onclick:()=>deleteCategory(c)},"🗑")));
+      }
       d.addEventListener("toggle",()=>{ if (q) return; d.open?openCats.add(c):openCats.delete(c); });
       return d;
     });
