@@ -1,0 +1,203 @@
+{
+ "updated": "2026-11-14T11:15+00:00",
+ "chains": {
+  "_city_codes_loaded": 1316,
+  "SHUFERSAL": {
+   "files": 426,
+   "store_files": 1,
+   "price_files": 425,
+   "stores": 425,
+   "items": 38833,
+   "stores_with_city": 414,
+   "raw_city_samples": [
+    "",
+    "10018",
+    "10044",
+    "10098",
+    "1015",
+    "1020",
+    "1031",
+    "1050"
+   ]
+  },
+  "RAMI_LEVY": {
+   "files": 288,
+   "store_files": 3,
+   "price_files": 285,
+   "stores": 98,
+   "items": 26816,
+   "stores_with_city": 96,
+   "raw_city_samples": [
+    "0",
+    "1015",
+    "1031",
+    "1034",
+    "1139",
+    "1165",
+    "1200",
+    "171"
+   ]
+  },
+  "VICTORY_NEW_SOURCE": {
+   "files": 0,
+   "store_files": 0,
+   "price_files": 0
+  },
+  "YAYNO_BITAN_AND_CARREFOUR": {
+   "files": 0,
+   "store_files": 0,
+   "price_files": 0
+  },
+  "OSHER_AD": {
+   "files": 50,
+   "store_files": 3,
+   "price_files": 47,
+   "stores": 24,
+   "items": 9628,
+   "stores_with_city": 24,
+   "raw_city_samples": [
+    "155",
+    "2006",
+    "2610",
+    "2620",
+    "3000",
+    "3780",
+    "4000",
+    "5000"
+   ]
+  },
+  "MAHSANI_ASHUK_NEW_SOURCE": {
+   "files": 0,
+   "store_files": 0,
+   "price_files": 0
+  },
+  "TIV_TAAM": {
+   "files": 57,
+   "store_files": 3,
+   "price_files": 54,
+   "stores": 54,
+   "items": 32162,
+   "stores_with_city": 54,
+   "raw_city_samples": [
+    "104",
+    "1139",
+    "1167",
+    "1200",
+    "2620",
+    "386",
+    "4000",
+    "5000"
+   ]
+  },
+  "HAZI_HINAM": {
+   "files": 0,
+   "store_files": 0,
+   "price_files": 0
+  },
+  "YOHANANOF": {
+   "files": 69,
+   "store_files": 3,
+   "price_files": 66,
+   "stores": 48,
+   "items": 20800,
+   "stores_with_city": 32,
+   "raw_city_samples": [
+    "0"
+   ]
+  },
+  "SUPER_SAPIR": {
+   "files": 1116,
+   "store_files": 116,
+   "price_files": 1000,
+   "stores": 91,
+   "items": 23909,
+   "stores_with_city": 75,
+   "raw_city_samples": [
+    "0",
+    "1020",
+    "1031",
+    "1113",
+    "1309",
+    "1401",
+    "166",
+    "1731"
+   ]
+  },
+  "KING_STORE": {
+   "files": 1111,
+   "store_files": 111,
+   "price_files": 1000,
+   "stores": 48,
+   "items": 15271,
+   "stores_with_city": 34,
+   "raw_city_samples": [
+    "0",
+    "1061",
+    "1139",
+    "1161",
+    "2710",
+    "2730",
+    "3000",
+    "4000"
+   ]
+  },
+  "SHEFA_BARCART_ASHEM": {
+   "files": 1087,
+   "store_files": 87,
+   "price_files": 1000,
+   "stores": 22,
+   "items": 10136,
+   "stores_with_city": 22,
+   "raw_city_samples": [
+    "0",
+    "1309",
+    "2610",
+    "3000",
+    "31",
+    "3730",
+    "3780",
+    "3797"
+   ]
+  },
+  "NETIV_HASED": {
+   "files": 0,
+   "store_files": 0,
+   "price_files": 0
+  },
+  "ZOL_VEBEGADOL": {
+   "files": 1060,
+   "store_files": 60,
+   "price_files": 1000,
+   "stores": 34,
+   "items": 16496,
+   "stores_with_city": 33,
+   "raw_city_samples": [
+    "0",
+    "1015",
+    "2610",
+    "3000",
+    "3616",
+    "70",
+    "7100"
+   ]
+  },
+  "FRESH_MARKET_AND_SUPER_DOSH": {
+   "files": 52,
+   "store_files": 3,
+   "price_files": 49,
+   "stores": 45,
+   "items": 19726,
+   "stores_with_city": 45,
+   "raw_city_samples": [
+    "1061",
+    "1139",
+    "1345",
+    "182",
+    "2100",
+    "2530",
+    "2620",
+    "2640"
+   ]
+  }
+ }
+}
