@@ -179,6 +179,96 @@ details.store .hint{padding:6px 12px}
 <script>window.smartcartAuth = new Promise(r => window.__smartcartResolve = r);</script>
 </head>
 <body>
+<!-- DEKEL loading screen (start) -->
+<div id="dekel-loader" dir="ltr" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-label="DEKEL">
+<style>
+  #dekel-loader .dk-o{transform-box:view-box}
+  /* 1. sun pops in, then breathes */
+  #dekel-loader .dk-sun-breathe{transform-origin:600px 415px;animation:dk-breathe 4s 1.2s ease-in-out infinite alternate}
+  #dekel-loader .dk-sun{transform-origin:600px 415px;animation:dk-pop .8s cubic-bezier(.2,.9,.3,1.25) both}
+  /* 2. trunk grows up from the ground */
+  #dekel-loader .dk-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:dk-draw .9s ease-out forwards}
+  #dekel-loader .dk-trunk{animation-delay:.45s}
+  #dekel-loader .dk-ground{animation-delay:.3s;animation-duration:1.1s}
+  #dekel-loader .dk-rings{opacity:0;animation:dk-fade .5s 1.15s ease-out forwards}
+  /* 3. fronds unfold from the crown, then sway */
+  #dekel-loader .dk-crown{transform-origin:600px 362px;animation:dk-sway 3.2s 2.6s ease-in-out infinite alternate}
+  #dekel-loader .dk-frond{transform-origin:600px 362px;animation:dk-unfold .75s var(--d) cubic-bezier(.3,1.35,.5,1) both}
+  #dekel-loader .dk-l{--r:35deg}#dekel-loader .dk-r{--r:-35deg}#dekel-loader .dk-c{--r:0deg}
+  /* 4. wordmark settles in */
+  #dekel-loader .dk-word{animation:dk-rise 1s 2.05s cubic-bezier(.2,.8,.2,1) both}
+  #dekel-loader .dk-line{transform-origin:600px 927px;animation:dk-grow .8s 2.5s ease-out both}
+
+  @keyframes dk-pop{from{transform:scale(0)}to{transform:scale(1)}}
+  @keyframes dk-breathe{from{transform:scale(1)}to{transform:scale(1.035)}}
+  @keyframes dk-draw{to{stroke-dashoffset:0}}
+  @keyframes dk-fade{to{opacity:1}}
+  @keyframes dk-unfold{from{transform:rotate(var(--r)) scale(0);opacity:0}to{transform:none;opacity:1}}
+  @keyframes dk-sway{from{transform:rotate(-2.5deg)}to{transform:rotate(2.5deg)}}
+  @keyframes dk-rise{from{opacity:0;transform:translateY(40px);letter-spacing:70px}to{opacity:1;transform:none;letter-spacing:28px}}
+  @keyframes dk-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+  @media (prefers-reduced-motion: reduce){
+    #dekel-loader *{animation:none!important}
+    #dekel-loader .dk-draw{stroke-dashoffset:0}#dekel-loader .dk-rings{opacity:1}
+  }
+</style>
+<rect fill="#FCF9F5"/>
+<g class="dk-o dk-sun-breathe"><circle class="dk-o dk-sun" cx="600" cy="415" r="255" fill="#F2DEDA"/></g>
+<path class="dk-draw dk-ground" pathLength="1" d="M414 678 Q600 711 786 678" stroke="#DBBEB7" stroke-width="5" fill="none" stroke-linecap="round"/>
+<path class="dk-draw dk-trunk" pathLength="1" d="M563 657 C589 565 592 475 598 361" stroke="#8E9F8C" stroke-width="23" fill="none" stroke-linecap="round"/>
+<path class="dk-rings" d="M589 488 l23 -17 M583 530 l-22 -20 M579 567 l25 -20 M573 606 l-23 -20" stroke="#D9C7AD" stroke-width="5" stroke-linecap="round"/>
+<g class="dk-o dk-crown">
+  <g fill="#9DBBAA">
+    <path class="dk-o dk-frond dk-l" style="--d:1.75s" d="M600 362 C552 278 440 234 333 275 C431 271 526 307 600 362Z"/>
+    <path class="dk-o dk-frond dk-l" style="--d:1.9s" d="M600 362 C535 306 415 314 340 391 C455 343 531 355 600 362Z"/>
+    <path class="dk-o dk-frond dk-l" style="--d:1.6s" d="M600 362 C573 274 489 200 392 193 C490 238 553 301 600 362Z"/>
+    <path class="dk-o dk-frond dk-l" style="--d:1.45s" d="M600 362 C603 265 554 173 467 128 C535 214 570 290 600 362Z"/>
+  </g>
+  <g fill="#AFC8B4">
+    <path class="dk-o dk-frond dk-r" style="--d:1.8s" d="M600 362 C654 277 759 235 870 273 C760 274 677 309 600 362Z"/>
+    <path class="dk-o dk-frond dk-r" style="--d:1.95s" d="M600 362 C674 300 790 317 862 398 C746 347 673 358 600 362Z"/>
+    <path class="dk-o dk-frond dk-r" style="--d:1.65s" d="M600 362 C634 266 719 194 821 194 C722 243 647 311 600 362Z"/>
+    <path class="dk-o dk-frond dk-r" style="--d:1.5s" d="M600 362 C593 262 641 172 729 124 C661 216 625 292 600 362Z"/>
+  </g>
+  <path class="dk-o dk-frond dk-c" style="--d:1.3s" d="M600 362 C570 263 572 177 606 105 C636 194 630 290 600 362Z" fill="#C2D3BB"/>
+</g>
+<text class="dk-o dk-word" x="600" y="865" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="133" letter-spacing="28" fill="#60766B">DEKEL</text>
+<path class="dk-o dk-line" d="M428 927 H772" stroke="#D9C4BB" stroke-width="3"/>
+</svg></div>
+<style>
+#dekel-loader{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#FCF9F5;visibility:visible;transition:opacity .35s ease}
+#dekel-loader svg{width:min(82vmin,520px);height:auto;display:block}
+#dekel-loader.dekel-out{opacity:0;pointer-events:none}
+</style>
+<script>
+(function(){
+  var el=document.getElementById('dekel-loader'); if(!el) return;
+  var KEY='dekelLoaderSeen', seen=false;
+  try{ seen=sessionStorage.getItem(KEY)==='1'; }catch(e){}
+  var WAIT='html.auth-pending';
+  if(seen && !WAIT){ el.remove(); return; }
+  var start=Date.now(), MIN=seen?0:2800, MAX=10000, done=false;
+  function ready(){
+    if(document.readyState!=='complete') return false;
+    if(WAIT && document.querySelector(WAIT)) return false;
+    return true;
+  }
+  function hide(){
+    if(done) return; done=true;
+    try{ sessionStorage.setItem(KEY,'1'); }catch(e){}
+    el.classList.add('dekel-out');
+    setTimeout(function(){ el.remove(); },400);
+  }
+  (function tick(){
+    var t=Date.now()-start;
+    if(t>=MAX || (t>=MIN && ready())) return hide();
+    setTimeout(tick,100);
+  })();
+})();
+</script>
+<!-- DEKEL loading screen (end) -->
+
 <div class="wrap">
   <header>
     <h1 id="title">מה קונים השבוע</h1>
